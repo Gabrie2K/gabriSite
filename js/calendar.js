@@ -41,8 +41,9 @@ function fmtDate(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-/** Converte minuti totali in 'HH:MM' */
+/** Converte minuti totali in 'HH:MM' — clampato a 00:00–23:59 */
 function minToHHMM(m) {
+  m = Math.max(0, Math.min(1439, Math.round(m)));
   return `${String(Math.floor(m / 60)).padStart(2,'0')}:${String(m % 60).padStart(2,'0')}`;
 }
 
@@ -255,9 +256,9 @@ function bindDragCreate(id) {
     const rect     = col.getBoundingClientRect();
     const scrollEl = document.getElementById('cal-scroll' + id);
     const relY     = e.clientY - rect.top + scrollEl.scrollTop;
-    const startMin = snapMin(relY / HH * 60);
+    const startMin = Math.min(1410, Math.max(0, snapMin(relY / HH * 60)));
 
-    dragState = { dayIdx, startMin, endMin: startMin + 60, col };
+    dragState = { dayIdx, startMin, endMin: Math.min(1439, startMin + 60), col };
 
     if (w.calState.ghostEl) w.calState.ghostEl.remove();
     const ghost = document.createElement('div');
@@ -276,8 +277,8 @@ function bindDragCreate(id) {
     const scrollEl = document.getElementById('cal-scroll' + id);
     if (!scrollEl) return;
     const relY   = e.clientY - rect.top + scrollEl.scrollTop;
-    const curMin = snapMin(Math.max(0, Math.min(1440, relY / HH * 60)));
-    dragState.endMin = Math.max(dragState.startMin + 15, curMin);
+    const curMin = snapMin(Math.max(0, Math.min(1425, relY / HH * 60)));
+    dragState.endMin = Math.min(1439, Math.max(dragState.startMin + 15, curMin));
     if (w.calState.ghostEl) {
       w.calState.ghostEl.style.top    = (dragState.startMin / 60 * HH) + 'px';
       w.calState.ghostEl.style.height = ((dragState.endMin - dragState.startMin) / 60 * HH) + 'px';
@@ -295,8 +296,8 @@ function bindDragCreate(id) {
       id:       'ev-' + Date.now(),
       title:    'Nuovo evento',
       date:     fmtDate(dayDate),
-      startMin: dragState.startMin,
-      endMin:   dragState.endMin,
+      startMin: Math.min(1410, Math.max(0, dragState.startMin)),
+      endMin:   Math.min(1439, Math.max(dragState.startMin + 15, dragState.endMin)),
       note:     '',
       color:    EV_COLORS[evColorIdx++ % EV_COLORS.length],
     };
@@ -321,6 +322,8 @@ function renderAllEvents(id) {
   grid.querySelectorAll('.cal-event').forEach(e => e.remove());
 
   w.events.forEach(ev => {
+    // salta eventi con orari illegali
+    if (ev.startMin < 0 || ev.endMin > 1439 || ev.startMin >= ev.endMin) return;
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart); d.setDate(d.getDate() + i);
       if (fmtDate(d) !== ev.date) continue;

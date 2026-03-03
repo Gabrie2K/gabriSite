@@ -17,6 +17,8 @@
   <link rel="stylesheet" href="css/graph.css">
   <link rel="stylesheet" href="css/sidebar.css">
   <link rel="stylesheet" href="css/calendar.css">
+  <link rel="stylesheet" href="css/map.css">
+  <link rel="stylesheet" href="css/tree.css">
 </head>
 <body>
 
@@ -33,19 +35,22 @@
     <button class="tb-new" id="btn-new">+ Nuova</button>
   </div>
 
-  <!-- Three.js (CDN) — deve precedere tutti gli script app -->
+  <!-- Dipendenze esterne — devono precedere tutti gli script app -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
 
   <!--
-    JS — ordine di caricamento (le dipendenze devono precedere chi le usa):
-    1. templates     → dati TPL (usati da window-manager)
-    2. three-helpers → SPHERE_R, CAM_START, assignPositions, makeLabel (usati da window-manager e scene3d)
+    JS — ordine di caricamento:
+    1. templates     → dati TPL
+    2. three-helpers → SPHERE_R, CAM_START, assignPositions, makeLabel
     3. background    → animazione stelle (indipendente)
-    4. window-manager→ WINS, createWin, ecc. (usato da calendar, sidepanel, main)
-    5. scene3d       → create3DScene (chiamato lazy da window-manager)
-    6. calendar      → initCalendar, renderAllEvents, scrollToNow (chiamato lazy da window-manager e sidepanel)
-    7. sidepanel     → openSP (chiamato lazy da window-manager e calendar)
-    8. main          → entry point (chiama createWin)
+    4. window-manager→ WINS, createWin, ecc.
+    5. scene3d       → create3DScene (lazy da window-manager)
+    6. calendar      → initCalendar, renderAllEvents, scrollToNow
+    7. sidepanel     → openSP
+    8. map           → initMap, mapBodyHTML, addMapPin
+    9. tree          → initTree, treeBodyHTML
+   10. main          → entry point
   -->
   <script src="js/templates.js"></script>
   <script src="js/three-helpers.js"></script>
@@ -54,6 +59,8 @@
   <script src="js/scene3d.js"></script>
   <script src="js/calendar.js"></script>
   <script src="js/sidepanel.js"></script>
+  <script src="js/map.js"></script>
+  <script src="js/tree.js"></script>
   <script src="js/main.js"></script>
 
 </body>
