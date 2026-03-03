@@ -1,0 +1,52 @@
+/* ══════════════════════════════════════════
+   BASE — variabili globali + reset
+   ══════════════════════════════════════════
+   QUICK EDIT: modifica le custom properties qui sotto
+   per cambiare colori, dimensioni finestre e griglia calendario.
+*/
+:root {
+  --bg:      #07090f;
+  --border:  rgba(99,179,255,0.18);
+  --accent:  #63b3ff;
+  --accent2: #a78bfa;
+  --text:    #e2e8f0;
+  --dim:     #4a5568;
+  --win-bg:  rgba(10,14,26,0.97);
+  --win-hdr: rgba(7,11,20,0.99);
+  --win-w:   820px;   /* ← larghezza default finestre */
+  --win-h:   560px;   /* ← altezza default finestre   */
+
+  /* calendario */
+  --cal-hour-h: 64px;  /* ← altezza di un'ora nella griglia */
+  --cal-left-w: 188px; /* ← larghezza sidebar mini-calendar */
+  --cal-time-w: 52px;  /* ← larghezza colonna orari         */
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  user-select: none;
+}
+
+body {
+  background: var(--bg);
+  font-family: 'Syne', sans-serif;
+  height: 100vh;
+  overflow: hidden;
+  color: var(--text);
+}
+
+canvas#bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#desktop {
+  position: fixed;
+  inset: 0;
+  bottom: 48px;
+  z-index: 1;
+}

@@ -1,0 +1,27 @@
+/* ══════════════════════════════════════════
+   GRAPH — contenitore Three.js 3D
+   ══════════════════════════════════════════ */
+
+.g3d {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+}
+
+.g3d.spinning { cursor: grabbing; }
+
+.g3d canvas { display: block; }
+
+/* hint interazione in basso a sinistra */
+.g3d-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 12px;
+  font-family: 'Space Mono', monospace;
+  font-size: .56rem;
+  color: rgba(100,116,139,.4);
+  pointer-events: none;
+  line-height: 2;
+  z-index: 2;
+}

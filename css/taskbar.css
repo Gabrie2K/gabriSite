@@ -1,0 +1,76 @@
+/* ══════════════════════════════════════════
+   TASKBAR — barra inferiore fissa
+   ══════════════════════════════════════════ */
+
+#taskbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  background: rgba(7,9,15,.97);
+  border-top: 1px solid var(--border);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  gap: 8px;
+  z-index: 9999;
+}
+
+.tb-logo {
+  font-size: .82rem;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  padding-right: 16px;
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+#tb-wins {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  overflow-x: auto;
+  min-width: 0;
+}
+
+/* pulsante finestra nella taskbar */
+.tb-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--dim);
+  font-family: 'Space Mono', monospace;
+  font-size: .66rem;
+  cursor: pointer;
+  transition: all .2s;
+  white-space: nowrap;
+}
+
+.tb-btn.active {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: rgba(99,179,255,.08);
+}
+
+.tb-btn.minimized { opacity: .4; }
+
+/* pulsante "+ Nuova finestra" */
+.tb-new {
+  padding: 5px 14px;
+  border-radius: 6px;
+  border: 1px solid rgba(167,139,250,.4);
+  background: rgba(167,139,250,.08);
+  color: var(--accent2);
+  font-family: 'Space Mono', monospace;
+  font-size: .66rem;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all .2s;
+}
+
+.tb-new:hover { background: rgba(167,139,250,.18); }

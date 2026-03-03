@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spatium — CST</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet">
+
+  <!-- CSS — ordine: variabili → componenti -->
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/taskbar.css">
+  <link rel="stylesheet" href="css/window.css">
+  <link rel="stylesheet" href="css/graph.css">
+  <link rel="stylesheet" href="css/sidebar.css">
+  <link rel="stylesheet" href="css/calendar.css">
+</head>
+<body>
+
+  <!-- Sfondo stelle (canvas) -->
+  <canvas id="bg"></canvas>
+
+  <!-- Area desktop: qui vengono montate le finestre -->
+  <div id="desktop"></div>
+
+  <!-- Taskbar fissa in basso -->
+  <div id="taskbar">
+    <span class="tb-logo">✦ CST</span>
+    <div id="tb-wins"></div>
+    <button class="tb-new" id="btn-new">+ Nuova</button>
+  </div>
+
+  <!-- Three.js (CDN) — deve precedere tutti gli script app -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+  <!--
+    JS — ordine di caricamento (le dipendenze devono precedere chi le usa):
+    1. templates     → dati TPL (usati da window-manager)
+    2. three-helpers → SPHERE_R, CAM_START, assignPositions, makeLabel (usati da window-manager e scene3d)
+    3. background    → animazione stelle (indipendente)
+    4. window-manager→ WINS, createWin, ecc. (usato da calendar, sidepanel, main)
+    5. scene3d       → create3DScene (chiamato lazy da window-manager)
+    6. calendar      → initCalendar, renderAllEvents, scrollToNow (chiamato lazy da window-manager e sidepanel)
+    7. sidepanel     → openSP (chiamato lazy da window-manager e calendar)
+    8. main          → entry point (chiama createWin)
+  -->
+  <script src="js/templates.js"></script>
+  <script src="js/three-helpers.js"></script>
+  <script src="js/background.js"></script>
+  <script src="js/window-manager.js"></script>
+  <script src="js/scene3d.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/sidepanel.js"></script>
+  <script src="js/main.js"></script>
+
+</body>
+</html>
