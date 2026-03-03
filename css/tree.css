@@ -1,0 +1,270 @@
+/* ══════════════════════════════════════════
+   TREE — vista ad albero gerarchico
+   ══════════════════════════════════════════ */
+
+.tree-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: transparent;
+}
+
+/* ── toolbar in alto ── */
+.tree-toolbar {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(7,9,15,.4);
+  flex-shrink: 0;
+}
+
+.tree-add-root-btn {
+  padding: 4px 12px;
+  border-radius: 5px;
+  border: 1px solid rgba(99,179,255,.35);
+  background: rgba(99,179,255,.08);
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  font-size: .62rem;
+  cursor: pointer;
+  transition: all .15s;
+}
+
+.tree-add-root-btn:hover { background: rgba(99,179,255,.18); }
+
+.tree-toolbar-hint {
+  font-family: 'Space Mono', monospace;
+  font-size: .56rem;
+  color: var(--dim);
+  margin-left: auto;
+}
+
+/* ── contenitore albero scrollabile ── */
+.tree-container {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: auto;
+  padding: 10px 8px;
+}
+
+.tree-container::-webkit-scrollbar { width: 4px; height: 4px; }
+.tree-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── nodo albero ── */
+.tree-node {
+  position: relative;
+  margin: 1px 0;
+}
+
+/* linea verticale del ramo padre */
+.tree-node:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 28px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* ── riga nodo ── */
+.tree-node-row {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 4px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  transition: all .15s;
+  min-height: 28px;
+  cursor: default;
+}
+
+.tree-node-row:hover {
+  background: rgba(99,179,255,.05);
+  border-color: var(--border);
+}
+
+.tree-node-row.drag-over {
+  background: rgba(99,179,255,.12);
+  border-color: var(--accent);
+}
+
+/* toggle expand/collapse */
+.tree-toggle {
+  width: 18px; height: 18px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: .65rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 3px;
+  flex-shrink: 0;
+  transition: color .15s;
+  padding: 0;
+}
+
+.tree-toggle:hover { color: var(--accent); }
+.tree-toggle.leaf { cursor: default; color: transparent; }
+
+/* label del nodo */
+.tree-node-label {
+  flex: 1;
+  font-family: 'Space Mono', monospace;
+  font-size: .7rem;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 3px;
+  cursor: default;
+}
+
+.tree-node-label.has-note {
+  color: var(--accent);
+}
+
+/* input rename inline */
+.tree-rename-inp {
+  flex: 1;
+  background: rgba(99,179,255,.06);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .7rem;
+  outline: none;
+  user-select: text;
+  min-width: 60px;
+}
+
+/* pulsanti azioni nodo */
+.tree-node-actions {
+  display: flex;
+  gap: 2px;
+  opacity: 0;
+  transition: opacity .15s;
+  flex-shrink: 0;
+}
+
+.tree-node-row:hover .tree-node-actions { opacity: 1; }
+
+.tree-act-btn {
+  padding: 2px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-family: 'Space Mono', monospace;
+  font-size: .55rem;
+  cursor: pointer;
+  transition: all .15s;
+  white-space: nowrap;
+  color: var(--dim);
+}
+
+.tree-act-btn:hover { color: var(--text); border-color: rgba(99,179,255,.4); }
+.tree-act-btn.edit:hover { color: var(--accent); border-color: var(--accent); }
+.tree-act-btn.rename:hover { color: #34d399; border-color: rgba(52,211,153,.4); }
+.tree-act-btn.del:hover { color: #ff5f57; border-color: rgba(255,95,87,.4); }
+.tree-act-btn.add:hover { color: var(--accent2); border-color: rgba(167,139,250,.4); }
+
+/* ── figli (indentati) ── */
+.tree-children {
+  padding-left: 22px;
+  position: relative;
+}
+
+/* connettore orizzontale verso il figlio */
+.tree-children > .tree-node::before {
+  content: '';
+  position: absolute;
+  left: -12px;
+  top: 14px;
+  width: 12px;
+  height: 1px;
+  background: var(--border);
+  pointer-events: none;
+}
+
+/* ── popup modifica nota nodo ── */
+.tree-note-popup {
+  position: fixed;
+  width: 280px;
+  background: rgba(6,9,18,.97);
+  border: 1px solid rgba(99,179,255,.4);
+  border-radius: 8px;
+  box-shadow: 0 12px 40px rgba(0,0,0,.7);
+  z-index: 9000;
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tree-note-popup.visible { display: flex; }
+
+.tree-note-popup-hdr {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(7,9,15,.6);
+  flex-shrink: 0;
+}
+
+.tree-note-popup-name {
+  flex: 1;
+  font-family: 'Space Mono', monospace;
+  font-size: .66rem;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-note-popup-close {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  width: 18px; height: 18px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: .6rem;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .15s;
+}
+
+.tree-note-popup-close:hover { border-color: var(--accent); color: var(--accent); }
+
+.tree-note-popup-ta {
+  width: 100%;
+  height: 160px;
+  background: transparent;
+  border: none;
+  padding: 10px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .66rem;
+  line-height: 1.65;
+  resize: none;
+  outline: none;
+  user-select: text;
+}
+
+.tree-note-popup-ta::placeholder { color: var(--dim); }
+
+/* stato vuoto */
+.tree-empty {
+  padding: 40px 20px;
+  text-align: center;
+  font-family: 'Space Mono', monospace;
+  font-size: .64rem;
+  color: var(--dim);
+  line-height: 2;
+}

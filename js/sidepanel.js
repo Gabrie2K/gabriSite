@@ -121,12 +121,14 @@ function renderSPEvent(winId, ev) {
 
   li.oninput = () => {
     const [h, m] = li.value.split(':').map(Number);
-    ev.startMin = h * 60 + m;
+    ev.startMin = Math.max(0, Math.min(1410, h * 60 + m));
+    if (ev.endMin <= ev.startMin) ev.endMin = Math.min(1439, ev.startMin + 15);
+    ri.value = minToHHMM(ev.endMin);
     renderAllEvents(winId);
   };
   ri.oninput = () => {
     const [h, m] = ri.value.split(':').map(Number);
-    ev.endMin = h * 60 + m;
+    ev.endMin = Math.max(ev.startMin + 1, Math.min(1439, h * 60 + m));
     renderAllEvents(winId);
   };
   [li, sep, ri].forEach(el => {

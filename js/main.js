@@ -7,7 +7,7 @@
 // Pulsante "+ Nuova" nella taskbar:
 // apre il prossimo template disponibile (o cicla se tutti aperti)
 document.getElementById('btn-new').onclick = () => {
-  const all  = [...Object.keys(TPL), 'Calendario'];
+  const all  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero'];
   const used = Object.values(WINS).map(w => w.tpl);
   const avail = all.filter(l => !used.includes(l));
   const pick  = avail[0] || all[WC % all.length];

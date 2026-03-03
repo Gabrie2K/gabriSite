@@ -2,14 +2,23 @@
 /* ═══════════════════════════════════════════════════════════
    WINDOW MANAGER — gestione finestre desktop-like
    Dipende da: templates.js, three-helpers.js
-   Chiama (lazy): scene3d.js, calendar.js, sidepanel.js
+   Chiama (lazy): scene3d.js, calendar.js, sidepanel.js, map.js, tree.js
    ═══════════════════════════════════════════════════════════ */
 
 let WC = 0;   // contatore finestre create
 let TZ = 100; // z-index progressivo
 
-/** Registro globale delle finestre: WINS[id] = { win, tpl, type, scene3d, nodes?, events?, calState? } */
+/** Registro globale delle finestre */
 const WINS = {};
+
+// ─── Tipo finestra ─────────────────────────────────────────
+
+function getWinType(tplName) {
+  if (tplName === 'Calendario') return 'calendar';
+  if (tplName === 'Mappa')      return 'map';
+  if (tplName === 'Albero')     return 'tree';
+  return 'constellation';
+}
 
 // ─── Template HTML dei body ────────────────────────────────
 
@@ -65,22 +74,27 @@ function calendarBodyHTML(id) {
     </div>`;
 }
 
+function getBodyHTML(id, tplName, type) {
+  if (type === 'calendar')     return calendarBodyHTML(id);
+  if (type === 'map')          return mapBodyHTML(id);
+  if (type === 'tree')         return treeBodyHTML(id);
+  return graphBodyHTML(id);
+}
+
 // ─── Creazione finestra ────────────────────────────────────
 
 function createWin(tplName, pos) {
-  const id         = ++WC;
-  const isCalendar = (tplName === 'Calendario');
+  const id   = ++WC;
+  const type = getWinType(tplName);
   const x = pos?.x ?? 40 + (id - 1) * 28;
   const y = pos?.y ?? 28 + (id - 1) * 28;
 
-  // elemento finestra
   const win = document.createElement('div');
   win.className = 'win focused';
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  // tabs: tutte le costellazioni + Calendario
-  const allTabs  = [...Object.keys(TPL), 'Calendario'];
+  const allTabs  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
@@ -96,14 +110,13 @@ function createWin(tplName, pos) {
     </div>
     <div class="win-tabs" id="wtabs${id}">${tabsHTML}</div>
     <div class="win-body" id="wb${id}">
-      ${isCalendar ? calendarBodyHTML(id) : graphBodyHTML(id)}
+      ${getBodyHTML(id, tplName, type)}
     </div>
     <div class="rh" id="rh${id}"></div>
   `;
 
   document.getElementById('desktop').appendChild(win);
 
-  // pulsante taskbar
   const tb = document.createElement('button');
   tb.className = 'tb-btn active';
   tb.id = 'tb' + id;
@@ -111,28 +124,26 @@ function createWin(tplName, pos) {
   tb.onclick = () => toggleMin(id);
   document.getElementById('tb-wins').appendChild(tb);
 
-  // stato finestra
-  const winData = {
-    win, tpl: tplName,
-    type: isCalendar ? 'calendar' : 'constellation',
-    scene3d: null,
-    calState: null,
-  };
+  const winData = { win, tpl: tplName, type, scene3d: null, calState: null };
 
-  if (!isCalendar) {
+  if (type === 'constellation') {
     const raw = TPL[tplName] || TPL.Computer;
     const tpl = JSON.parse(JSON.stringify(raw));
     assignPositions(tpl.nodes);
     winData.nodes = tpl.nodes;
-  } else {
+  } else if (type === 'calendar') {
     winData.events = [];
+  } else if (type === 'map') {
+    winData.pins = [];
+  } else if (type === 'tree') {
+    winData.treeData = { roots: [] };
   }
 
   WINS[id] = winData;
   setupWinEvents(id);
   focusW(id);
 
-  if (!isCalendar) {
+  if (type === 'constellation') {
     requestAnimationFrame(() => requestAnimationFrame(() => {
       if (WINS[id])
         WINS[id].scene3d = create3DScene(
@@ -141,8 +152,12 @@ function createWin(tplName, pos) {
           node => openSP(id, node, 'node')
         );
     }));
-  } else {
+  } else if (type === 'calendar') {
     requestAnimationFrame(() => initCalendar(id));
+  } else if (type === 'map') {
+    requestAnimationFrame(() => initMap(id));
+  } else if (type === 'tree') {
+    requestAnimationFrame(() => initTree(id));
   }
 
   return id;
@@ -170,8 +185,11 @@ function toggleMin(id) {
 }
 
 function closeW(id) {
-  WINS[id]?.scene3d?.dispose();
-  WINS[id]?.win.remove();
+  const w = WINS[id];
+  if (!w) return;
+  w.scene3d?.dispose();
+  w._mapDispose?.();
+  w.win.remove();
   document.getElementById('tb' + id)?.remove();
   delete WINS[id];
 }
@@ -204,29 +222,32 @@ function switchLayer(id, l) {
   const w = WINS[id];
   if (!w) return;
 
+  const newType = getWinType(l);
+
   document.getElementById('wn' + id).textContent = '✦ ' + l;
   document.getElementById('tb' + id).textContent  = '◈ ' + l;
-  w.tpl = l;
+  w.tpl  = l;
+  w.type = newType;
 
   const wb = document.getElementById('wb' + id);
   const sp = document.getElementById('sp' + id);
   if (sp) sp.classList.remove('open');
 
-  const isCalendar = (l === 'Calendario');
+  // smonta risorse precedenti
+  w.scene3d?.dispose(); w.scene3d = null;
+  w._mapDispose?.(); w._mapDispose = null;
 
-  // smonta scena 3D precedente
-  w.scene3d?.dispose();
-  w.scene3d = null;
+  wb.innerHTML = getBodyHTML(id, l, newType);
 
-  wb.innerHTML = isCalendar ? calendarBodyHTML(id) : graphBodyHTML(id);
+  // ri-aggancia close panel (solo se esiste un sp)
+  const newSp = document.getElementById('sp' + id);
+  if (newSp) {
+    document.getElementById('spx' + id)?.addEventListener('click',
+      () => newSp.classList.remove('open')
+    );
+  }
 
-  // ri-aggancia bottone chiusura pannello
-  document.getElementById('spx' + id).addEventListener('click',
-    () => document.getElementById('sp' + id).classList.remove('open')
-  );
-
-  if (!isCalendar) {
-    w.type = 'constellation';
+  if (newType === 'constellation') {
     const raw = TPL[l] || TPL.Computer;
     const tpl = JSON.parse(JSON.stringify(raw));
     assignPositions(tpl.nodes);
@@ -238,10 +259,15 @@ function switchLayer(id, l) {
           node => openSP(id, node, 'node')
         );
     }));
-  } else {
-    w.type = 'calendar';
+  } else if (newType === 'calendar') {
     if (!w.events) w.events = [];
     requestAnimationFrame(() => initCalendar(id));
+  } else if (newType === 'map') {
+    if (!w.pins) w.pins = [];
+    requestAnimationFrame(() => initMap(id));
+  } else if (newType === 'tree') {
+    if (!w.treeData) w.treeData = { roots: [] };
+    requestAnimationFrame(() => initTree(id));
   }
 }
 
@@ -285,12 +311,12 @@ function setupWinEvents(id) {
     switchLayer(id, l);
   });
 
-  // chiudi side panel
-  document.getElementById('spx' + id).addEventListener('click',
-    () => document.getElementById('sp' + id).classList.remove('open')
+  // close side panel (solo per tipi che ce l'hanno)
+  document.getElementById('spx' + id)?.addEventListener('click',
+    () => document.getElementById('sp' + id)?.classList.remove('open')
   );
 
-  // resize handle (angolo basso-destra)
+  // resize handle
   const rh = document.getElementById('rh' + id);
   let rd = false, rx = 0, ry = 0, rw = 0, rh2 = 0;
   rh.addEventListener('mousedown', e => {
