@@ -64,8 +64,96 @@
   color: var(--dim);
   flex: 1;
   text-align: center;
-  pointer-events: none;
+  cursor: default;
+  user-select: none;
 }
+
+/* ── export button ── */
+.win-export-btn {
+  background: none;
+  border: 1px solid rgba(99,179,255,.2);
+  color: rgba(99,179,255,.6);
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  font-size: .72rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all .15s;
+}
+.win-export-btn:hover { color: var(--accent); background: rgba(99,179,255,.1); border-color: rgba(99,179,255,.4); }
+
+/* ── inline rename input ── */
+.win-name-inp {
+  flex: 1;
+  background: rgba(99,179,255,.08);
+  border: 1px solid rgba(99,179,255,.35);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .68rem;
+  border-radius: 4px;
+  padding: 2px 8px;
+  outline: none;
+  text-align: center;
+}
+
+/* ── close confirmation overlay ── */
+.win-close-confirm {
+  position: absolute;
+  inset: 0;
+  background: rgba(7,9,15,.78);
+  display: none;
+  place-items: center;
+  z-index: 20;
+  border-radius: 12px;
+}
+.win-close-confirm.visible { display: grid; }
+
+.win-close-confirm-box {
+  background: #0d1526;
+  border: 1px solid rgba(99,179,255,.22);
+  border-radius: 10px;
+  padding: 22px 28px;
+  text-align: center;
+  box-shadow: 0 12px 40px rgba(0,0,0,.5);
+}
+.win-close-confirm-msg {
+  font-family: 'Syne', sans-serif;
+  font-size: .8rem;
+  color: var(--text);
+  margin-bottom: 16px;
+}
+.win-close-confirm-btns { display: flex; gap: 10px; justify-content: center; }
+
+.wcc-yes {
+  background: rgba(236,72,153,.18);
+  border: 1px solid rgba(236,72,153,.45);
+  color: #ec4899;
+  border-radius: 6px;
+  padding: 6px 18px;
+  font-family: 'Space Mono', monospace;
+  font-size: .65rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.wcc-yes:hover { background: rgba(236,72,153,.32); }
+
+.wcc-no {
+  background: rgba(99,179,255,.1);
+  border: 1px solid rgba(99,179,255,.28);
+  color: var(--accent);
+  border-radius: 6px;
+  padding: 6px 18px;
+  font-family: 'Space Mono', monospace;
+  font-size: .65rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+.wcc-no:hover { background: rgba(99,179,255,.2); }
 
 /* ── tab bar ── */
 .win-tabs {

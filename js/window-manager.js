@@ -106,13 +106,23 @@ function createWin(tplName, pos) {
         <div class="dot mn" data-a="mn"></div>
         <div class="dot mx" data-a="mx"></div>
       </div>
-      <span class="win-name" id="wn${id}">✦ ${tplName}</span>
+      <span class="win-name" id="wn${id}" title="Doppio clic per rinominare">✦ ${tplName}</span>
+      <button class="win-export-btn" id="we${id}" title="Esporta dati">↓</button>
     </div>
     <div class="win-tabs" id="wtabs${id}">${tabsHTML}</div>
     <div class="win-body" id="wb${id}">
       ${getBodyHTML(id, tplName, type)}
     </div>
     <div class="rh" id="rh${id}"></div>
+    <div class="win-close-confirm" id="wcc${id}">
+      <div class="win-close-confirm-box">
+        <div class="win-close-confirm-msg">Chiudere questa finestra?</div>
+        <div class="win-close-confirm-btns">
+          <button class="wcc-yes" id="wcc-yes${id}">Chiudi</button>
+          <button class="wcc-no" id="wcc-no${id}">Annulla</button>
+        </div>
+      </div>
+    </div>
   `;
 
   document.getElementById('desktop').appendChild(win);
@@ -124,7 +134,10 @@ function createWin(tplName, pos) {
   tb.onclick = () => toggleMin(id);
   document.getElementById('tb-wins').appendChild(tb);
 
-  const winData = { win, tpl: tplName, type, scene3d: null, calState: null };
+  const winData = {
+    win, tpl: tplName, type, scene3d: null, calState: null,
+    wid: id, wname: tplName, createdAt: new Date().toISOString(),
+  };
 
   if (type === 'constellation') {
     const raw = TPL[tplName] || TPL.Computer;
@@ -216,6 +229,54 @@ function maxW(id) {
   }
 }
 
+function showCloseConfirm(id) {
+  document.getElementById('wcc' + id)?.classList.add('visible');
+}
+
+function startWinRename(id) {
+  const w = WINS[id];
+  if (!w) return;
+  const span = document.getElementById('wn' + id);
+  if (!span) return;
+  const inp = document.createElement('input');
+  inp.className = 'win-name-inp';
+  inp.value = w.wname;
+  inp.onkeydown = e => {
+    e.stopPropagation();
+    if (e.key === 'Enter')  inp.blur();
+    if (e.key === 'Escape') { inp.remove(); span.style.display = ''; }
+  };
+  inp.onblur = () => {
+    const v = inp.value.trim();
+    if (v && WINS[id]) { WINS[id].wname = v; span.textContent = '✦ ' + v; }
+    inp.remove(); span.style.display = '';
+  };
+  inp.onmousedown = e => e.stopPropagation();
+  span.style.display = 'none';
+  span.parentNode.insertBefore(inp, span);
+  inp.focus(); inp.select();
+}
+
+function exportWin(id) {
+  const w = WINS[id];
+  if (!w) return;
+  const data = {
+    wid: w.wid, wname: w.wname, createdAt: w.createdAt,
+    type: w.type, tpl: w.tpl, exportedAt: new Date().toISOString(),
+  };
+  if (w.type === 'constellation') data.nodes = w.nodes;
+  if (w.type === 'calendar')      data.events = w.events;
+  if (w.type === 'map')           data.pins = w.pins;
+  if (w.type === 'tree')          data.treeData = w.treeData;
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = (w.wname.replace(/\s+/g, '-') || 'win') + '-' + id + '.json';
+  document.body.appendChild(a); a.click();
+  document.body.removeChild(a); URL.revokeObjectURL(url);
+}
+
 // ─── Cambio tab (layer) ────────────────────────────────────
 
 function switchLayer(id, l) {
@@ -297,10 +358,30 @@ function setupWinEvents(id) {
   win.querySelectorAll('.dot').forEach(d => d.addEventListener('click', e => {
     e.stopPropagation();
     const a = d.dataset.a;
-    if (a === 'cl') closeW(id);
+    if (a === 'cl') showCloseConfirm(id);
     else if (a === 'mn') toggleMin(id);
     else if (a === 'mx') maxW(id);
   }));
+
+  // conferma chiusura
+  document.getElementById('wcc-yes' + id)?.addEventListener('click', e => {
+    e.stopPropagation(); closeW(id);
+  });
+  document.getElementById('wcc-no' + id)?.addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('wcc' + id)?.classList.remove('visible');
+  });
+
+  // esporta
+  document.getElementById('we' + id)?.addEventListener('click', e => {
+    e.stopPropagation(); exportWin(id);
+  });
+  document.getElementById('we' + id)?.addEventListener('mousedown', e => e.stopPropagation());
+
+  // rinomina con doppio clic
+  document.getElementById('wn' + id)?.addEventListener('dblclick', e => {
+    e.stopPropagation(); startWinRename(id);
+  });
 
   // tab switch
   document.getElementById('wtabs' + id).addEventListener('click', e => {
