@@ -18,6 +18,7 @@ function getWinType(tplName) {
   if (tplName === 'Mappa')      return 'map';
   if (tplName === 'Albero')     return 'tree';
   if (tplName === 'Note')       return 'notes';
+  if (tplName === 'Cervello')   return 'brain';
   return 'constellation';
 }
 
@@ -80,6 +81,7 @@ function getBodyHTML(id, tplName, type) {
   if (type === 'map')          return mapBodyHTML(id);
   if (type === 'tree')         return treeBodyHTML(id);
   if (type === 'notes')        return notesBodyHTML(id);
+  if (type === 'brain')        return brainBodyHTML(id);
   return graphBodyHTML(id);
 }
 
@@ -96,7 +98,7 @@ function createWin(tplName, pos) {
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  const allTabs  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note'];
+  const allTabs  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Cervello'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
@@ -160,6 +162,8 @@ function createWin(tplName, pos) {
       { id: 'n3', title: 'Sezione 3', content: 'Altro testo di esempio per la sezione 3.' }
     ];
     winData.currentNoteId = 'n1';
+  } else if (type === 'brain') {
+    winData.thoughts = [];
   }
 
   WINS[id] = winData;
@@ -183,6 +187,8 @@ function createWin(tplName, pos) {
     requestAnimationFrame(() => initTree(id));
   } else if (type === 'notes') {
     requestAnimationFrame(() => initNotes(id));
+  } else if (type === 'brain') {
+    requestAnimationFrame(() => initBrain(id));
   }
 
   return id;
@@ -214,6 +220,7 @@ function closeW(id) {
   if (!w) return;
   w.scene3d?.dispose();
   w._mapDispose?.();
+  w._brainDispose?.();
   w.win.remove();
   document.getElementById('tb' + id)?.remove();
   delete WINS[id];
@@ -309,6 +316,7 @@ function switchLayer(id, l) {
   // smonta risorse precedenti
   w.scene3d?.dispose(); w.scene3d = null;
   w._mapDispose?.(); w._mapDispose = null;
+  w._brainDispose?.(); w._brainDispose = null;
 
   wb.innerHTML = getBodyHTML(id, l, newType);
 
@@ -351,6 +359,9 @@ function switchLayer(id, l) {
     }
     w.currentNoteId = w.currentNoteId || w.notes[0]?.id;
     requestAnimationFrame(() => initNotes(id));
+  } else if (newType === 'brain') {
+    if (!w.thoughts) w.thoughts = [];
+    requestAnimationFrame(() => initBrain(id));
   }
 }
 

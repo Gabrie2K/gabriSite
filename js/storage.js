@@ -37,6 +37,7 @@ function _serializeWins() {
     if (w.notes) item.notes = JSON.parse(JSON.stringify(w.notes));
     if (w.currentNoteId) item.currentNoteId = w.currentNoteId;
     if (w.noteSidebarWidth) item.noteSidebarWidth = w.noteSidebarWidth;
+    if (w.thoughts) item.thoughts = JSON.parse(JSON.stringify(w.thoughts));
     wins.push(item);
   });
   return wins;
@@ -164,6 +165,9 @@ function importState(state) {
           target.currentNoteId = w.currentNoteId;
           if (w.noteSidebarWidth) target.noteSidebarWidth = w.noteSidebarWidth;
           requestAnimationFrame(() => initNotes(newId));
+        }
+        if (w.thoughts && target.type === 'brain') {
+          target.thoughts = w.thoughts;
         }
       }, 150);
     } catch (e) { console.warn('[storage] failed to recreate win', e); }

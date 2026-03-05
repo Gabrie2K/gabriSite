@@ -1,0 +1,261 @@
+/* ══════════════════════════════════════════
+   BRAIN — cervello 3D interattivo
+   ══════════════════════════════════════════ */
+
+.brain-wrap {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── pannello sinistro ── */
+.brain-left {
+  width: 210px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 10px 10px 10px 12px;
+  gap: 10px;
+  overflow-y: auto;
+  background: rgba(6,9,18,.6);
+}
+
+.brain-left-title {
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--dim);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* ── form aggiunta ── */
+.brain-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.brain-form-hint {
+  font-family: 'Space Mono', monospace;
+  font-size: .6rem;
+  color: var(--dim);
+  line-height: 1.5;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  background: rgba(99,179,255,.025);
+}
+
+.brain-form-inp {
+  background: rgba(99,179,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .66rem;
+  outline: none;
+  user-select: text;
+  transition: border-color .15s;
+}
+
+.brain-form-inp:focus   { border-color: var(--accent); }
+.brain-form-inp::placeholder { color: var(--dim); }
+.brain-form-inp:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.brain-form-ta {
+  background: rgba(99,179,255,.03);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .64rem;
+  line-height: 1.55;
+  resize: vertical;
+  min-height: 64px;
+  outline: none;
+  user-select: text;
+  transition: border-color .15s;
+}
+
+.brain-form-ta:focus    { border-color: var(--accent); }
+.brain-form-ta::placeholder { color: var(--dim); }
+.brain-form-ta:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.brain-form-add {
+  background: rgba(99,179,255,.08);
+  border: 1px solid rgba(99,179,255,.35);
+  color: var(--accent);
+  border-radius: 5px;
+  padding: 5px 8px;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  font-size: .6rem;
+  transition: background .15s;
+}
+
+.brain-form-add:hover:not(:disabled) { background: rgba(99,179,255,.18); }
+.brain-form-add:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── lista pensieri ── */
+.brain-thought-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  flex: 1;
+}
+
+.brain-thought-item {
+  padding: 6px 8px 6px 10px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 5px;
+  background: rgba(99,179,255,.025);
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.brain-thought-item:hover { background: rgba(99,179,255,.06); }
+
+.brain-thought-title {
+  font-family: 'Space Mono', monospace;
+  font-size: .68rem;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.brain-thought-preview {
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  color: var(--dim);
+  line-height: 1.4;
+}
+
+/* ── scena 3D ── */
+.brain-scene {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(ellipse at 50% 40%, rgba(20,10,15,.9) 0%, rgba(4,6,12,1) 100%);
+}
+
+.brain-scene-hint {
+  position: absolute;
+  bottom: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Space Mono', monospace;
+  font-size: .56rem;
+  color: rgba(255,255,255,.2);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* ── popup editing pensiero ── */
+.brain-popup {
+  position: absolute;
+  width: 240px;
+  background: rgba(6,9,18,.97);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.6);
+}
+
+.brain-popup-hdr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.brain-popup-title-inp {
+  flex: 1;
+  background: rgba(99,179,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 5px 8px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .68rem;
+  font-weight: 700;
+  outline: none;
+  user-select: text;
+  transition: border-color .15s;
+}
+
+.brain-popup-title-inp:focus { border-color: var(--accent); }
+.brain-popup-title-inp::placeholder { color: var(--dim); }
+
+.brain-popup-close {
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: .72rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all .15s;
+}
+
+.brain-popup-close:hover { border-color: var(--accent); color: var(--accent); }
+
+.brain-popup-note {
+  width: 100%;
+  min-height: 72px;
+  background: rgba(99,179,255,.03);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 7px 8px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .64rem;
+  line-height: 1.55;
+  resize: vertical;
+  outline: none;
+  user-select: text;
+  box-sizing: border-box;
+  transition: border-color .15s;
+}
+
+.brain-popup-note:focus { border-color: var(--accent); }
+.brain-popup-note::placeholder { color: var(--dim); }
+
+.brain-popup-del {
+  width: 100%;
+  padding: 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(255,95,87,.3);
+  background: rgba(255,95,87,.06);
+  color: #ff5f57;
+  font-family: 'Space Mono', monospace;
+  font-size: .6rem;
+  cursor: pointer;
+  transition: background .15s;
+}
+
+.brain-popup-del:hover { background: rgba(255,95,87,.14); }
