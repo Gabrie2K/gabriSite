@@ -206,6 +206,105 @@
 .note-ta:focus { border-color: var(--accent); }
 .note-ta::placeholder { color: var(--dim); }
 
+/* componenti section */
+.comp-sec {
+  margin-top: 12px;
+}
+.comp-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: .68rem;
+}
+.comp-add-btn {
+  margin-top: 6px;
+  background: rgba(99,179,255,.08);
+  border: 1px solid rgba(99,179,255,.35);
+  color: var(--accent);
+  border-radius: 5px;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-family: 'Space Mono', monospace;
+  font-size: .62rem;
+}
+.comp-add-btn:hover {
+  background: rgba(99,179,255,.18);
+}
+
+/* ── notebook (note-app) ── */
+.note-app {
+  display: flex;
+  height: 100%;
+}
+.note-sidebar {
+  width: 170px;
+  background: rgba(0,0,0,0.04);
+  border-right: 1px solid var(--border);
+  padding: 8px;
+  overflow-y: auto;
+}
+.note-sidebar-item {
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  font-family: 'Space Mono', monospace;
+  font-size: .78rem;
+}
+.note-sidebar-item.active,
+.note-sidebar-item:hover {
+  background: rgba(99,179,255,.15);
+}
+.note-content {
+  flex: 1;
+  padding: 12px;
+  overflow-y: auto;
+  font-family: 'Space Mono', monospace;
+  font-size: .82rem;
+  white-space: pre-wrap;
+}
+
+/* resizer between sidebar and content (visible area) */
+.note-sidebar-resizer {
+  width: 8px;
+  cursor: col-resize;
+  background: linear-gradient(90deg, rgba(255,0,0,0.04), rgba(255,0,0,0.08));
+  border-left: 1px solid rgba(255,0,0,0.06);
+  border-right: 1px solid rgba(255,0,0,0.03);
+  -webkit-user-select: none; -moz-user-select: none; user-select: none;
+}
+
+.note-content-view {
+  white-space: pre-wrap;
+  color: var(--text);
+  min-height: 200px;
+}
+
+.note-content-ta {
+  width: 100%;
+  height: calc(100% - 8px);
+  min-height: 200px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  background: rgba(0,0,0,0.02);
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .88rem;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+}
+
+.note-sidebar-rename { width: 100%; box-sizing: border-box; padding: 4px 6px; font-family: 'Space Mono', monospace; }
+
+.note-sidebar-label { display: inline-block; width: calc(100% - 8px); }
+
 /* ── pannello evento calendario ── */
 .ev-title-inp {
   width: 100%;

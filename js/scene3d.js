@@ -58,6 +58,7 @@ function create3DScene(winId, nodes, layerColor, onNodeClick) {
   scene.add(nodeGroup);
   const meshList  = [];
   const dotGroups = {};
+  const compGroups = {};
 
   // ── dots attributi sopra ogni nodo ──────────────────────
   function buildDots(node) {
@@ -80,6 +81,33 @@ function create3DScene(winId, nodes, layerColor, onNodeClick) {
     });
 
     dotGroups[node.id] = g;
+    nodeGroup.add(g);
+  }
+
+  // ── componenti (cerchi) accanto al nodo
+  function buildComps(node) {
+    if (compGroups[node.id]) nodeGroup.remove(compGroups[node.id]);
+    if (!node.components || !node.components.length) return;
+    const g = new THREE.Group();
+    // compute local tangent basis
+    const norm = node._v.clone().normalize();
+    let t1 = new THREE.Vector3(0,1,0).cross(norm).normalize();
+    if (t1.length() < 0.01) t1 = new THREE.Vector3(1,0,0);
+    const t2 = new THREE.Vector3().crossVectors(norm, t1).normalize();
+    node.components.forEach(c => {
+      const rscale = Math.max(2, c.r); // visual scale
+      const geo = new THREE.SphereGeometry(rscale, 16, 16);
+      const mat = new THREE.MeshBasicMaterial({ color: 0x22ff22, transparent: true, opacity: 0.4 });
+      const mesh = new THREE.Mesh(geo, mat);
+      // base position slightly offset from sphere surface
+      const base = norm.clone().multiplyScalar(SPHERE_R + 5);
+      const pos = base.clone()
+        .add(t1.clone().multiplyScalar(c.x))
+        .add(t2.clone().multiplyScalar(c.y));
+      mesh.position.copy(pos);
+      g.add(mesh);
+    });
+    compGroups[node.id] = g;
     nodeGroup.add(g);
   }
 
@@ -108,6 +136,7 @@ function create3DScene(winId, nodes, layerColor, onNodeClick) {
     nodeGroup.add(lbl);
 
     buildDots(n);
+    buildComps(n);
   });
 
   // linee dal nodo centrale verso i satelliti
@@ -212,7 +241,7 @@ function create3DScene(winId, nodes, layerColor, onNodeClick) {
     renderer,
     scene,
     /** Aggiorna i dot attributi di un nodo dopo una modifica */
-    refreshDots: node => buildDots(node),
+    refreshDots: node => { buildDots(node); buildComps(node); },
     /** Smonta la scena e rimuove tutti i listener */
     dispose: () => {
       cancelAnimationFrame(rafId);

@@ -5,6 +5,9 @@
    ═══════════════════════════════════════════════════════════ */
 
 const MAP_R = 155; // raggio sfera globo
+// Autoplay: dopo questo intervallo (ms) senza interazione il globo ruota
+// Velocità è in radianti per millisecondo (usata in animate)
+// Regolare per aumentare/diminuire velocità
 
 // ── palette pin ──────────────────────────────────────────
 const PIN_COLORS = [
@@ -114,9 +117,18 @@ const MAP_CITIES = [
 // ─── HTML struttura finestra mappa ──────────────────────────
 
 function mapBodyHTML(id) {
+  /**
+   * Restituisce l'HTML della finestra mappa per l'id fornito.
+   * Usata da `createWin` per popolare il contenuto della finestra.
+   */
   return `
     <div class="map-wrap" id="mapwrap${id}">
       <div class="map-left">
+        <div class="map-layers">
+          <div class="map-layers-lbl">Layer:</div>
+          <select class="map-layers-select" id="map-layer-sel${id}"></select>
+          <button class="map-layer-add-btn" id="map-layer-add${id}">+</button>
+        </div>
         <div class="map-coord-form">
           <div class="map-coord-row">
             <span class="map-coord-lbl">LAT</span>
@@ -133,7 +145,7 @@ function mapBodyHTML(id) {
         <div class="map-pin-list" id="mappropins${id}"></div>
       </div>
       <div class="map-globe" id="mapglobe${id}">
-        <div class="map-loading" id="mapload${id}">Caricamento globo…</div>
+        
         <div class="map-globe-hint">drag → ruota · scroll → zoom · click → pin</div>
         <div class="map-popup" id="mappopup${id}">
           <div class="map-popup-hdr">
@@ -150,12 +162,25 @@ function mapBodyHTML(id) {
 // ─── Init mappa ─────────────────────────────────────────────
 
 function initMap(id) {
+  /**
+   * Inizializza la mappa per la finestra `id`:
+   * - imposta stato iniziale
+   * - collega i controlli DOM
+   * - crea la scena 3D
+   */
   const w = WINS[id];
   if (!w || w.type !== 'map') return;
   if (!w.pins) w.pins = [];
-  w.mapState = { activePopupPin: null };
+  w.mapState = { activePopupPin: null, activeLayer: 'Tutti' };
+  
+  // inizializza mapLayers se non esiste
+  if (!w.mapLayers) {
+    w.mapLayers = {
+      'Tutti': { color: 0xcccccc, visible: true },
+    };
+  }
 
-  // pulsante aggiungi
+  // pulsante aggiungi pin
   document.getElementById('mapadd' + id).onclick = () => {
     const lat = parseFloat(document.getElementById('maplat' + id).value);
     const lon = parseFloat(document.getElementById('maplon' + id).value);
@@ -165,6 +190,22 @@ function initMap(id) {
 
   // chiudi popup
   document.getElementById('mappclose' + id).onclick = () => closeMapPopup(id);
+
+  // layer dropdown: aggiorna quando cambia
+  const layerSel = document.getElementById('map-layer-sel' + id);
+  layerSel.addEventListener('change', () => switchMapLayer(id, layerSel.value));
+
+  // bottone nuovo layer
+  document.getElementById('map-layer-add' + id).onclick = () => {
+    const name = prompt('Nome nuovo layer:', '');
+    if (name && name.trim()) {
+      addMapLayer(id, name.trim(), 0x63b3ff);
+      renderLayerList(id);
+    }
+  };
+
+  // renderizza lista layer
+  renderLayerList(id);
 
   createGlobeScene(id);
 
@@ -176,6 +217,13 @@ function initMap(id) {
 
 // ─── Scena Three.js ─────────────────────────────────────────
 
+/**
+ * Crea la scena Three.js per il globo nella finestra `id`.
+ * Imposta renderer, camera, luci, sfera oceano, atmosfera, gruppi per layer
+ * e i listeners per interazione (drag/zoom/click). Inoltre gestisce il
+ * loop di render e un meccanismo di autoplay che avvia la rotazione dopo
+ * un periodo di inattività.
+ */
 function createGlobeScene(id) {
   const container = document.getElementById('mapglobe' + id);
   if (!container || !window.THREE) return;
@@ -198,6 +246,10 @@ function createGlobeScene(id) {
   const camera = new THREE.PerspectiveCamera(45, W / H, 1, 3000);
   let camR = 420, theta = 0.18, phi = 1.22; // mostra Europa
 
+  // autoplay settings (locali alla scena)
+  const AUTO_SPIN_DELAY = 120000; // 2 minuti
+  const AUTO_SPIN_SPEED = 0.00001; // radianti per ms (~0.57°/s)
+
   function setCamera() {
     camera.position.set(
       camR * Math.sin(phi) * Math.cos(theta),
@@ -209,8 +261,9 @@ function createGlobeScene(id) {
   setCamera();
 
   // ── sfera ocean ──
+  // aumento dettaglio sfera per migliorare resa visiva
   const ocean = new THREE.Mesh(
-    new THREE.SphereGeometry(MAP_R, 64, 64),
+    new THREE.SphereGeometry(MAP_R, 128, 128),
     new THREE.MeshPhongMaterial({ color: 0x07111e, shininess: 20, transparent: true, opacity: 0.92 })
   );
   scene.add(ocean);
@@ -250,7 +303,8 @@ function createGlobeScene(id) {
   }
 
   // ── carica bordi paesi da CDN ──
-  loadCountryBorders(geoGroup);
+  // usa versione più dettagliata dei bordi (50m) per maggior risoluzione
+  loadCountryBorders(geoGroup, 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json');
 
   // ── punti città ──
   renderCities(cityGroup);
@@ -266,6 +320,8 @@ function createGlobeScene(id) {
   el.addEventListener('mousedown', e => {
     dragging = true; lx = e.clientX; ly = e.clientY; moved = 0;
     container.classList.add('spinning'); e.stopPropagation();
+    // interazione umana -> disabilita autoplay temporaneamente
+    const w = WINS[id]; if (w?.mapState) { w.mapState.autoSpin = false; w.mapState.lastInteraction = Date.now(); disableAutoSpin(id); }
   });
 
   const onMove = e => {
@@ -276,6 +332,7 @@ function createGlobeScene(id) {
     lx = e.clientX; ly = e.clientY;
     moved += Math.abs(dx) + Math.abs(dy);
     setCamera();
+    const w = WINS[id]; if (w?.mapState) w.mapState.lastInteraction = Date.now();
   };
 
   const onUp = e => {
@@ -284,15 +341,20 @@ function createGlobeScene(id) {
     if (moved < 5) {
       handleGlobeClick(id, e, renderer.domElement, camera);
     }
+    // riprogramma autoplay dopo interazione
+    const w = WINS[id]; if (w?.mapState) { w.mapState.lastInteraction = Date.now(); scheduleAutoSpin(id); }
   };
 
   document.addEventListener('mousemove', onMove);
   document.addEventListener('mouseup', onUp);
 
+
+  //zoom for the mouse, the .X is the mult, range: 0.6-0.1
   el.addEventListener('wheel', e => {
     e.preventDefault(); e.stopPropagation();
-    camR = Math.max(180, Math.min(900, camR + e.deltaY * .6));
+    camR = Math.max(180, Math.min(900, camR + e.deltaY * .2));
     setCamera();
+    const w = WINS[id]; if (w?.mapState) { w.mapState.lastInteraction = Date.now(); w.mapState.autoSpin = false; disableAutoSpin(id); scheduleAutoSpin(id); }
   }, { passive: false });
 
   // ── resize ──
@@ -306,8 +368,10 @@ function createGlobeScene(id) {
   ro.observe(container);
 
   // ── loop render ──
+  // time-based animate: gestisce anche autoplay incrementando `theta`
   let rafId;
   let firstFrame = true;
+  let prevT = performance.now();
   function animate() {
     if (!WINS[id]) return;
     if (firstFrame) {
@@ -315,10 +379,40 @@ function createGlobeScene(id) {
       const loadEl = document.getElementById('mapload' + id);
       if (loadEl) loadEl.style.display = 'none';
     }
+    const now = performance.now();
+    const dt = now - prevT; prevT = now;
+    const w = WINS[id];
+    // autoplay: ruota lentamente quando abilitato e l'utente non sta trascinando
+    if (w?.mapState?.autoSpin && !dragging && !w.mapState.activePopupPin) {
+      theta += dt * AUTO_SPIN_SPEED;
+      setCamera();
+      container.classList.add('autospin');
+    } else {
+      container.classList.remove('autospin');
+    }
     rafId = requestAnimationFrame(animate);
     renderer.render(scene, camera);
   }
   rafId = requestAnimationFrame(animate);
+
+  // auto-spin management helpers
+  function scheduleAutoSpin(winId) {
+    const w2 = WINS[winId]; if (!w2) return;
+    if (!w2.mapState) w2.mapState = {};
+    if (w2._mapAutoSpinTimer) clearTimeout(w2._mapAutoSpinTimer);
+    w2._mapAutoSpinTimer = setTimeout(() => {
+      w2.mapState.autoSpin = true;
+      w2.mapState.lastInteraction = Date.now();
+    }, AUTO_SPIN_DELAY);
+  }
+  function disableAutoSpin(winId) {
+    const w2 = WINS[winId]; if (!w2) return;
+    w2.mapState.autoSpin = false;
+    if (w2._mapAutoSpinTimer) { clearTimeout(w2._mapAutoSpinTimer); w2._mapAutoSpinTimer = null; }
+  }
+  // inizializza stato di autoplay
+  const wState = WINS[id]; if (wState && !wState.mapState) wState.mapState = { activePopupPin: null };
+  scheduleAutoSpin(id);
 
   // dispose
   w._mapDispose = () => {
@@ -328,6 +422,8 @@ function createGlobeScene(id) {
     document.removeEventListener('mouseup', onUp);
     renderer.dispose();
     el.remove();
+    // pulisci timer autoplay
+    const w3 = WINS[id]; if (w3 && w3._mapAutoSpinTimer) { clearTimeout(w3._mapAutoSpinTimer); w3._mapAutoSpinTimer = null; }
   };
 }
 
@@ -351,10 +447,11 @@ function vec3ToLatLon(v, r) {
 
 // ─── Carica bordi paesi (TopoJSON da CDN) ───────────────────
 
-async function loadCountryBorders(group) {
+// `url` opzionale permette di specificare la risoluzione (es. countries-50m.json)
+async function loadCountryBorders(group, url = 'https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json') {
   try {
     const [worldRes] = await Promise.all([
-      fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json'),
+      fetch(url),
     ]);
     const world = await worldRes.json();
     if (typeof topojson === 'undefined') return;
@@ -401,10 +498,62 @@ function drawGeoLines(group, geom, r, mat) {
 function renderCities(group) {
   const geo = new THREE.SphereGeometry(0.9, 5, 5);
   const mat = new THREE.MeshBasicMaterial({ color: 0x4a6fa5, transparent: true, opacity: 0.7 });
-  MAP_CITIES.forEach(([lat, lon]) => {
-    const m = new THREE.Mesh(geo, mat);
-    m.position.copy(latLonToVec3(lat, lon, MAP_R + 1));
-    group.add(m);
+  
+}
+
+// ─── Gestione layer ─────────────────────────────────────────
+
+function addMapLayer(id, name, color) {
+  const w = WINS[id];
+  if (!w) return;
+  if (!w.mapLayers) w.mapLayers = { 'Tutti': { color: 0xcccccc, visible: true } };
+  if (w.mapLayers[name]) return; // layer già esiste
+  w.mapLayers[name] = { color, visible: true };
+  if (window.persistState) window.persistState();
+}
+
+function removeMapLayer(id, name) {
+  const w = WINS[id];
+  if (!w || !w.mapLayers || name === 'Tutti') return; // non rimuovere "Tutti"
+  delete w.mapLayers[name];
+  // se era il layer attivo, torna a "Tutti"
+  if (w.mapState?.activeLayer === name) {
+    w.mapState.activeLayer = 'Tutti';
+    renderPinList(id);
+  }
+  if (window.persistState) window.persistState();
+}
+
+function switchMapLayer(id, name) {
+  const w = WINS[id];
+  if (!w || !w.mapLayers || !w.mapLayers[name]) return;
+  w.mapState.activeLayer = name;
+  renderPinList(id);
+  // mostra/nascondi pin mesh in base al layer
+  if (w._pinMeshMap) {
+    Object.keys(w._pinMeshMap).forEach(pinId => {
+      const pin = w.pins.find(p => p.id === pinId);
+      if (!pin) return;
+      const visible = name === 'Tutti' || pin.layer === name;
+      w._pinMeshMap[pinId].mesh.visible = visible;
+      w._pinMeshMap[pinId].ring.visible = visible;
+    });
+  }
+  if (window.persistState) window.persistState();
+}
+
+function renderLayerList(id) {
+  const w = WINS[id];
+  if (!w || !w.mapLayers) return;
+  const sel = document.getElementById('map-layer-sel' + id);
+  if (!sel) return;
+  sel.innerHTML = '';
+  Object.keys(w.mapLayers).forEach(layerName => {
+    const opt = document.createElement('option');
+    opt.value = layerName;
+    opt.textContent = layerName;
+    opt.selected = layerName === w.mapState?.activeLayer;
+    sel.appendChild(opt);
   });
 }
 
@@ -455,10 +604,12 @@ function addMapPin(id, lat, lon, title, note) {
     title: title || 'Pin',
     note:  note  || '',
     color: PIN_COLORS[pinColorIdx++ % PIN_COLORS.length],
+    layer: w.mapState?.activeLayer || 'Tutti', // assegna al layer attivo
   };
   w.pins.push(pin);
   addPinMesh(id, pin);
   renderPinList(id);
+  if (window.persistState) window.persistState();
 }
 
 function addPinMesh(id, pin) {
@@ -471,11 +622,15 @@ function addPinMesh(id, pin) {
 
   // sfera pin
   const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(3.5, 10, 10),
+    new THREE.SphereGeometry(1, 10, 10),
     new THREE.MeshBasicMaterial({ color: col })
   );
   mesh.position.copy(pos);
   mesh.userData.pinId = pin.id;
+  mesh.userData.layer = pin.layer || 'Tutti';
+  // visibilità: mostrato se il layer è "Tutti" oppure se è il layer attivo
+  const activeLayer = w.mapState?.activeLayer || 'Tutti';
+  mesh.visible = activeLayer === 'Tutti' || pin.layer === activeLayer;
 
   // anello glow
   const ring = new THREE.Mesh(
@@ -484,6 +639,7 @@ function addPinMesh(id, pin) {
   );
   ring.position.copy(pos);
   ring.lookAt(0, 0, 0);
+  ring.visible = mesh.visible;
 
   pinGroup.add(mesh); pinGroup.add(ring);
   if (!w._pinMeshMap) w._pinMeshMap = {};
@@ -503,6 +659,7 @@ function removeMapPin(id, pinId) {
   const popup = document.getElementById('mappopup' + id);
   if (popup && w.mapState?.activePopupPin === pinId) closeMapPopup(id);
   renderPinList(id);
+  if (window.persistState) window.persistState();
 }
 
 // ─── Lista pin nel pannello sinistro ────────────────────────
@@ -513,13 +670,19 @@ function renderPinList(id) {
   const list = document.getElementById('mappropins' + id);
   if (!list) return;
   list.innerHTML = '';
-  if (w.pins.length === 0) {
+  
+  // filtra pin per layer attivo
+  const activeLayer = w.mapState?.activeLayer || 'Tutti';
+  const filteredPins = w.pins.filter(p => activeLayer === 'Tutti' || p.layer === activeLayer);
+  
+  if (filteredPins.length === 0) {
     const empty = document.createElement('div');
     empty.style.cssText = 'padding:16px 8px;font-family:Space Mono,monospace;font-size:.58rem;color:#4a5568;text-align:center;';
-    empty.textContent = 'Nessun pin.\nInserisci lat/lon\ne premi + Aggiungi.';
+    empty.textContent = activeLayer === 'Tutti' ? 'Nessun pin.\nInserisci lat/lon\ne premi + Aggiungi.' : 'Nessun pin in questo layer.';
     list.appendChild(empty); return;
   }
-  w.pins.forEach(pin => {
+  
+  filteredPins.forEach(pin => {
     const item = document.createElement('div');
     item.className = 'map-pin-item';
 
@@ -533,7 +696,7 @@ function renderPinList(id) {
     name.className = 'map-pin-name'; name.textContent = pin.title;
     const coords = document.createElement('div');
     coords.className = 'map-pin-coords';
-    coords.textContent = `LAT ${pin.lat.toFixed(3)} | LON ${pin.lon.toFixed(3)}`;
+    coords.textContent = `LAT ${pin.lat.toFixed(3)} | LON ${pin.lon.toFixed(3)} | ${pin.layer || 'Tutti'}`;
     info.append(name, coords);
 
     const del = document.createElement('button');
@@ -581,10 +744,11 @@ function openMapPopup(id, pin, screenX, screenY) {
   document.getElementById('mapptitle' + id).oninput = () => {
     pin.title = document.getElementById('mapptitle' + id).value;
     renderPinList(id);
+    if (window.persistState) window.persistState();
   };
   const noteEl = document.getElementById('mappnote' + id);
   noteEl.value = pin.note;
-  noteEl.oninput = () => { pin.note = noteEl.value; };
+  noteEl.oninput = () => { pin.note = noteEl.value; if (window.persistState) window.persistState(); };
   document.getElementById('mappcoords' + id).textContent =
     `LAT: ${pin.lat.toFixed(4)}  |  LON: ${pin.lon.toFixed(4)}`;
 

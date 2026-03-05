@@ -80,6 +80,50 @@ function renderSPNode(winId, node) {
   ta.onmousedown = e => e.stopPropagation();
   ns.appendChild(ta);
   body.appendChild(ns);
+
+  // ── componenti hardware (solo Computer/Server)
+  if (node.label === 'Computer' || node.label === 'Server') {
+    node.components = node.components || [];
+    const cs = mkDiv('comp-sec');
+    cs.appendChild(mkLbl('● Componenti'));
+    node.components.forEach((c,i) => {
+      const row = mkDiv('comp-item');
+      row.textContent = `centro (${c.x.toFixed(1)},${c.y.toFixed(1)}) r=${c.r.toFixed(1)}`;
+      const del = document.createElement('button');
+      del.textContent = '✕';
+      del.onclick = () => { node.components.splice(i,1); renderSPNode(winId,node); WINS[winId]?.scene3d?.refreshDots(node); };
+      row.appendChild(del);
+      cs.appendChild(row);
+    });
+    const add = document.createElement('button');
+    add.className = 'comp-add-btn';
+    add.textContent = '+ Aggiungi';
+    add.onclick = () => { addComponent(node); renderSPNode(winId,node); WINS[winId]?.scene3d?.refreshDots(node); };
+    cs.appendChild(add);
+    body.appendChild(cs);
+  }
+}
+
+// helper per componenti (centro/raggio)
+function addComponent(node) {
+  const R = 60;
+  node.components = node.components || [];
+  const r = 8 + Math.random()*12;
+  let x,y,ok,tries=0;
+  do {
+    const ang = Math.random()*2*Math.PI;
+    const dist = Math.random()*(R - r);
+    x = dist * Math.cos(ang);
+    y = dist * Math.sin(ang);
+    ok = true;
+    for (const c of node.components) {
+      if (Math.hypot(x - c.x, y - c.y) < (r + c.r)) {
+        ok = false; break;
+      }
+    }
+    tries++;
+  } while(!ok && tries < 100);
+  node.components.push({ x, y, r });
 }
 
 // ─── Vista evento calendario ───────────────────────────────

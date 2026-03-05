@@ -20,6 +20,63 @@
   overflow: hidden;
 }
 
+/* ── layer selector ── */
+.map-layers {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.map-layers-lbl {
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  white-space: nowrap;
+}
+
+.map-layers-select {
+  flex: 1;
+  background: rgba(99,179,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .62rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color .15s;
+  min-width: 0;
+}
+
+.map-layers-select:focus { border-color: var(--accent); }
+.map-layers-select option { background: #0a1428; color: var(--text); }
+
+.map-layer-add-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(99,179,255,.35);
+  background: rgba(99,179,255,.08);
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  font-size: .7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-layer-add-btn:hover { background: rgba(99,179,255,.18); }
+
 .map-coord-form {
   padding: 12px 10px 10px;
   border-bottom: 1px solid var(--border);

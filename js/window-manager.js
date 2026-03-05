@@ -17,6 +17,7 @@ function getWinType(tplName) {
   if (tplName === 'Calendario') return 'calendar';
   if (tplName === 'Mappa')      return 'map';
   if (tplName === 'Albero')     return 'tree';
+  if (tplName === 'Note')       return 'notes';
   return 'constellation';
 }
 
@@ -78,6 +79,7 @@ function getBodyHTML(id, tplName, type) {
   if (type === 'calendar')     return calendarBodyHTML(id);
   if (type === 'map')          return mapBodyHTML(id);
   if (type === 'tree')         return treeBodyHTML(id);
+  if (type === 'notes')        return notesBodyHTML(id);
   return graphBodyHTML(id);
 }
 
@@ -94,7 +96,7 @@ function createWin(tplName, pos) {
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  const allTabs  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero'];
+  const allTabs  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
@@ -150,6 +152,14 @@ function createWin(tplName, pos) {
     winData.pins = [];
   } else if (type === 'tree') {
     winData.treeData = { roots: [] };
+  } else if (type === 'notes') {
+    // notebook structure for this window
+    winData.notes = [
+      { id: 'n1', title: 'Sezione 1', content: 'Testo di esempio per la sezione 1.' },
+      { id: 'n2', title: 'Sezione 2', content: 'Contenuto della sezione 2...' },
+      { id: 'n3', title: 'Sezione 3', content: 'Altro testo di esempio per la sezione 3.' }
+    ];
+    winData.currentNoteId = 'n1';
   }
 
   WINS[id] = winData;
@@ -171,6 +181,8 @@ function createWin(tplName, pos) {
     requestAnimationFrame(() => initMap(id));
   } else if (type === 'tree') {
     requestAnimationFrame(() => initTree(id));
+  } else if (type === 'notes') {
+    requestAnimationFrame(() => initNotes(id));
   }
 
   return id;
@@ -329,6 +341,16 @@ function switchLayer(id, l) {
   } else if (newType === 'tree') {
     if (!w.treeData) w.treeData = { roots: [] };
     requestAnimationFrame(() => initTree(id));
+  } else if (newType === 'notes') {
+    if (!w.notes) {
+      w.notes = [
+        { id: 'n1', title: 'Sezione 1', content: 'Testo di esempio per la sezione 1.' },
+        { id: 'n2', title: 'Sezione 2', content: 'Contenuto della sezione 2...' },
+        { id: 'n3', title: 'Sezione 3', content: 'Altro testo di esempio per la sezione 3.' }
+      ];
+    }
+    w.currentNoteId = w.currentNoteId || w.notes[0]?.id;
+    requestAnimationFrame(() => initNotes(id));
   }
 }
 
