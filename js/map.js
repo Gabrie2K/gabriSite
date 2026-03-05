@@ -370,9 +370,15 @@ function createGlobeScene(id) {
   // ── loop render ──
   // time-based animate: gestisce anche autoplay incrementando `theta`
   let rafId;
+  let firstFrame = true;
   let prevT = performance.now();
   function animate() {
     if (!WINS[id]) return;
+    if (firstFrame) {
+      firstFrame = false;
+      const loadEl = document.getElementById('mapload' + id);
+      if (loadEl) loadEl.style.display = 'none';
+    }
     const now = performance.now();
     const dt = now - prevT; prevT = now;
     const w = WINS[id];
@@ -574,9 +580,11 @@ function handleGlobeClick(id, e, canvas, camera) {
   }
 
   // click sul globo → pre-compila coordinate
-  const globeHit = ray.intersectObject(
-    w._mapScene.scene.children.find(c => c.type === 'Mesh' && c.geometry?.type === 'SphereGeometry')
+  const globeMesh = w._mapScene?.scene.children.find(
+    c => c.type === 'Mesh' && c.geometry?.type === 'SphereGeometry'
   );
+  if (!globeMesh) return;
+  const globeHit = ray.intersectObject(globeMesh);
   if (globeHit?.length > 0) {
     const { lat, lon } = vec3ToLatLon(globeHit[0].point, MAP_R);
     document.getElementById('maplat' + id).value = lat.toFixed(4);

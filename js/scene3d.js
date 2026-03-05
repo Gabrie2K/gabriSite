@@ -62,6 +62,7 @@ function create3DScene(winId, nodes, layerColor, onNodeClick) {
 
   // ── dots attributi sopra ogni nodo ──────────────────────
   function buildDots(node) {
+    if (!node._v) return; // sicurezza
     if (dotGroups[node.id]) nodeGroup.remove(dotGroups[node.id]);
     const g      = new THREE.Group();
     const dr     = 3.5;
@@ -114,6 +115,8 @@ function create3DScene(winId, nodes, layerColor, onNodeClick) {
   const main = nodes.find(n => n.main);
 
   nodes.forEach(n => {
+    if (!n._v) return; // sicurezza: salta nodi senza posizione
+
     const r      = n.main ? 20 : 12;
     const col    = n.main ? (layerColor || 0x4499ff) : 0x7755cc;
     const emCol  = n.main ? (layerColor || 0x224488) : 0x331166;
@@ -123,7 +126,7 @@ function create3DScene(winId, nodes, layerColor, onNodeClick) {
       shininess: 90, transparent: true, opacity: .88,
     });
     const mesh = new THREE.Mesh(new THREE.SphereGeometry(r, 32, 32), mat);
-    mesh.position.copy(n._v);
+    mesh.position.set(n._v.x, n._v.y, n._v.z);
     mesh.userData.node = n;
     nodeGroup.add(mesh);
     meshList.push({ mesh, node: n });
@@ -137,13 +140,15 @@ function create3DScene(winId, nodes, layerColor, onNodeClick) {
   });
 
   // linee dal nodo centrale verso i satelliti
-  nodes.filter(n => !n.main).forEach(n => {
-    const geo = new THREE.BufferGeometry().setFromPoints([main._v.clone(), n._v.clone()]);
-    nodeGroup.add(new THREE.Line(
-      geo,
-      new THREE.LineBasicMaterial({ color: layerColor || 0x63b3ff, transparent: true, opacity: .22 })
-    ));
-  });
+  if (main?._v) {
+    nodes.filter(n => !n.main && n._v).forEach(n => {
+      const geo = new THREE.BufferGeometry().setFromPoints([main._v.clone(), n._v.clone()]);
+      nodeGroup.add(new THREE.Line(
+        geo,
+        new THREE.LineBasicMaterial({ color: layerColor || 0x63b3ff, transparent: true, opacity: .22 })
+      ));
+    });
+  }
 
   // ── interazione mouse ───────────────────────────────────
   const el = renderer.domElement;
