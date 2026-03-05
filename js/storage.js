@@ -37,6 +37,7 @@ function _serializeWins() {
     if (w.notes) item.notes = JSON.parse(JSON.stringify(w.notes));
     if (w.currentNoteId) item.currentNoteId = w.currentNoteId;
     if (w.noteSidebarWidth) item.noteSidebarWidth = w.noteSidebarWidth;
+    if (w.thoughts) item.thoughts = JSON.parse(JSON.stringify(w.thoughts));
     wins.push(item);
   });
   return wins;
@@ -44,9 +45,9 @@ function _serializeWins() {
 
 function getAppState() {
   return {
+    schemaVersion: 2,
     meta: { wc: WC, tz: TZ, exportedAt: new Date().toISOString() },
-    tpl: _cleanTPL(TPL),
-    wins: _serializeWins()
+    wins: _serializeWins(),
   };
 }
 
@@ -96,57 +97,77 @@ function importStateFromFile(file) {
 
 function importState(state) {
   if (!state) return;
+
+  // Stato vecchio (pre-v2): scarta silenziosamente per evitare
+  // di sovrascrivere i template con versioni minimali dal localStorage.
+  if ((state.schemaVersion || 1) < 2) {
+    console.info('[storage] Stato obsoleto (v1), ignorato. Ripartenza con template freschi.');
+    localStorage.removeItem('spatium_state');
+    return;
+  }
+
   // chiudi finestre correnti
   Object.keys(WINS).map(k => Number(k)).forEach(id => closeW(id));
-  // restore counters (note: createWin increments WC, so set lower value first)
+  // restore counters
   WC = state.meta?.wc || 0; TZ = state.meta?.tz || 100;
 
-  // restore TPL (non distruttivo)
-  if (state.tpl) {
-    Object.keys(state.tpl).forEach(k => { TPL[k] = state.tpl[k]; });
-  }
+  // NON ripristinare TPL dal file salvato: i template vengono sempre da templates.js
 
   // recreate wins
   (state.wins || []).forEach(w => {
     try {
-      // pos: left/top may include px; try parse numbers
-      const pos = { x: w.pos?.left ? parseInt(String(w.pos.left).replace('px','')) : undefined, y: w.pos?.top ? parseInt(String(w.pos.top).replace('px','')) : undefined };
+      const pos = {
+        x: w.pos?.left ? parseInt(String(w.pos.left).replace('px','')) : undefined,
+        y: w.pos?.top  ? parseInt(String(w.pos.top ).replace('px','')) : undefined,
+      };
       const newId = createWin(w.tpl || (w.type === 'map' ? 'Mappa' : 'Computer'), pos);
-      // defer rehydration shortly after creation
       setTimeout(() => {
         const target = WINS[newId];
         if (!target) return;
-        if (w.nodes) {
-          target.nodes = w.nodes;
+
+        if (target.type === 'constellation') {
+          // Usa sempre la struttura fresca da TPL + assignPositions.
+          // Sovrapponi solo attrs/note modificati dall'utente (match per id).
+          const currentTpl = TPL[target.tpl];
+          if (currentTpl) {
+            const fresh = JSON.parse(JSON.stringify(currentTpl));
+            const savedById = {};
+            (w.nodes || []).forEach(n => { savedById[n.id] = n; });
+            fresh.nodes.forEach(n => {
+              const sv = savedById[n.id];
+              if (sv) {
+                if (sv.attrs && sv.attrs.length) n.attrs = sv.attrs;
+                if (sv.note) n.note = sv.note;
+              }
+            });
+            assignPositions(fresh.nodes);
+            target.nodes = fresh.nodes;
+          }
           target.scene3d?.dispose();
-          target.scene3d = create3DScene(newId, target.nodes, TPL[target.tpl]?.color || 0x63b3ff, node => openSP(newId, node, 'node'));
+          target.scene3d = create3DScene(
+            newId, target.nodes,
+            TPL[target.tpl]?.color || 0x63b3ff,
+            node => openSP(newId, node, 'node')
+          );
         }
+
         if (w.pins) {
           target.pins = w.pins;
-          // se la scena mappa è pronta, aggiungi i pin
           renderPinList(newId);
           (target.pins || []).forEach(p => addPinMesh(newId, p));
         }
-        if (w.events) target.events = w.events;
+        if (w.events)   target.events   = w.events;
         if (w.treeData) target.treeData = w.treeData;
-        if (w.blocks) target.blocks = w.blocks;
         if (w.calState) target.calState = w.calState;
-        if (w.mapLayers) target.mapLayers = w.mapLayers;
         if (w.mapState) target.mapState = w.mapState;
         if (w.notes) {
           target.notes = w.notes;
           target.currentNoteId = w.currentNoteId;
           if (w.noteSidebarWidth) target.noteSidebarWidth = w.noteSidebarWidth;
-          // render notebook view if currently open
           requestAnimationFrame(() => initNotes(newId));
         }
-        // ri-renderizza lista layer se è una mappa
-        if (target.mapLayers && typeof renderLayerList === 'function') {
-          renderLayerList(newId);
-          // ripristina il layer attivo
-          if (target.mapState?.activeLayer) {
-            switchMapLayer(newId, target.mapState.activeLayer);
-          }
+        if (w.thoughts && target.type === 'brain') {
+          target.thoughts = w.thoughts;
         }
       }, 150);
     } catch (e) { console.warn('[storage] failed to recreate win', e); }
