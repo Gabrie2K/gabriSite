@@ -38,15 +38,14 @@ function initNotes(id) {
 
 /**
  * Costruisce l'interfaccia documento/side-bar e mostra la sezione
- * corrente.
+ * corrente. Se focusContent=true, mette il focus sulla textarea.
  */
-function renderNotes(id) {
+function renderNotes(id, focusContent) {
   const w = WINS[id];
   if (!w) return;
   const sidebar = document.getElementById('noteSidebar' + id);
   const content = document.getElementById('noteContent' + id);
   if (!sidebar || !content) return;
-  // restore persisted sidebar width or default
   if (!w.noteSidebarWidth) w.noteSidebarWidth = 170;
   sidebar.style.width = w.noteSidebarWidth + 'px';
 
@@ -59,13 +58,21 @@ function renderNotes(id) {
     const lbl = document.createElement('span');
     lbl.className = 'note-sidebar-label';
     lbl.textContent = sec.title;
-    // single click: select section
+
+    // click: salva contenuto corrente e passa alla sezione
     lbl.onclick = (e) => {
       e.stopPropagation();
+      // salva testo attuale dalla textarea se presente
+      const currTa = content.querySelector('.note-content-ta');
+      if (currTa) {
+        const curr = w.notes.find(n => n.id === w.currentNoteId);
+        if (curr) curr.content = currTa.value;
+      }
       w.currentNoteId = sec.id;
-      renderNotes(id);
+      renderNotes(id, true); // focus immediato
     };
-    // double click: rename
+
+    // doppio click: rinomina sezione
     lbl.ondblclick = (e) => {
       e.stopPropagation();
       const inp = document.createElement('input');
@@ -76,10 +83,12 @@ function renderNotes(id) {
         if (window.persistState) window.persistState();
         renderNotes(id);
       };
-      inp.onkeydown = ev => { ev.stopPropagation(); if (ev.key === 'Enter') commit(); if (ev.key === 'Escape') renderNotes(id); };
+      inp.onkeydown = ev => {
+        ev.stopPropagation();
+        if (ev.key === 'Enter') commit();
+        if (ev.key === 'Escape') renderNotes(id);
+      };
       inp.onblur = commit;
-      item.appendChild(inp);
-      // replace label visually
       item.replaceChild(inp, lbl);
       inp.focus(); inp.select();
     };
@@ -89,7 +98,7 @@ function renderNotes(id) {
     sidebar.appendChild(item);
   });
 
-  // add visible resizer element between sidebar and content
+  // resizer
   let resizer = document.getElementById('note-resizer-' + id);
   if (!resizer) {
     resizer = document.createElement('div');
@@ -98,36 +107,26 @@ function renderNotes(id) {
     sidebar.parentNode.insertBefore(resizer, content);
   }
 
-  // render content as plain text; single-click turns into editable textarea
+  // contenuto: sempre textarea editabile direttamente
   const curr = w.notes.find(n => n.id === w.currentNoteId) || w.notes[0] || null;
   content.innerHTML = '';
   if (curr) {
-    const view = document.createElement('div');
-    view.className = 'note-content-view';
-    view.textContent = curr.content || '';
-    // single click => edit
-    view.onclick = (e) => {
-      e.stopPropagation();
-      // replace with textarea for editing
-      const ta = document.createElement('textarea');
-      ta.className = 'note-content-ta';
-      ta.value = curr.content || '';
-      ta.onmousedown = ev => ev.stopPropagation();
-      ta.onkeydown = ev => { ev.stopPropagation(); if (ev.key === 'Escape') { renderNotes(id); } };
-      ta.onblur = () => {
-        curr.content = ta.value;
-        if (window.persistState) window.persistState();
-        renderNotes(id);
-      };
-      content.replaceChild(ta, view);
-      ta.focus();
-      // place cursor at end
-      ta.selectionStart = ta.selectionEnd = ta.value.length;
+    const ta = document.createElement('textarea');
+    ta.className = 'note-content-ta';
+    ta.value = curr.content || '';
+    ta.onmousedown = ev => ev.stopPropagation();
+    ta.onkeydown = ev => ev.stopPropagation();
+    ta.oninput = () => {
+      curr.content = ta.value;
+      if (window.persistState) window.persistState();
     };
-    content.appendChild(view);
+    content.appendChild(ta);
+    if (focusContent) {
+      ta.focus();
+      ta.selectionStart = ta.selectionEnd = ta.value.length;
+    }
   }
 
-  // attach resizer logic
   attachNoteResizer(id);
 }
 

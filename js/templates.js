@@ -229,12 +229,12 @@ const TPL = {
     ],
   },
 
-  // ── Note ─────────────────────────────────────────────────
-  Note: {
+  // ── Idee ─────────────────────────────────────────────────
+  Idee: {
     color: 0xfbbf24,
     nodes: [
       {
-        id: 'note-hub', label: 'Note', main: true,
+        id: 'note-hub', label: 'Idee', main: true,
         attrs: [
           { name: 'Sistema in uso',  s: 'have' },
           { name: 'Review regolare', s: 'want' },
