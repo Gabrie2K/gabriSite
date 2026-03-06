@@ -196,15 +196,19 @@ function renderNotes(id, focusContent) {
     if (window.persistState) window.persistState();
   };
 
-  // click on img → show resize handles
-  editor.addEventListener('mousedown', e => {
-    if (e.target.tagName === 'IMG') {
-      // don't prevent default here — let contenteditable handle cursor
-      setTimeout(() => showNoteImgResizer(id, e.target, editor, curr), 0);
-    } else {
-      hideNoteImgResizer();
+  // allow drag&drop of images into editor (same as before)
+  editor.ondragover = e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; };
+  editor.ondrop = e => {
+    e.preventDefault();
+    const files = e.dataTransfer.files;
+    for (let file of files) {
+      if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = ev => _noteInsertImage(id, ev.target.result, editor, curr);
+        reader.readAsDataURL(file);
+      }
     }
-  });
+  };
 
   // paste image from clipboard
   editor.addEventListener('paste', e => {
@@ -219,6 +223,15 @@ function renderNotes(id, focusContent) {
         reader.readAsDataURL(blob);
         break;
       }
+    }
+  });
+
+  // click on img → show overlay resizer handles
+  editor.addEventListener('mousedown', e => {
+    if (e.target.tagName === 'IMG') {
+      setTimeout(() => showNoteImgResizer(id, e.target, editor, curr), 0);
+    } else {
+      hideNoteImgResizer();
     }
   });
 
@@ -256,7 +269,9 @@ function _noteInsertImage(id, src, editor, sec) {
   const img = document.createElement('img');
   img.src       = src;
   img.className = 'note-inline-img';
+  // initial width as before
   img.style.width   = '280px';
+  img.style.maxWidth = '100%';
   img.style.height  = 'auto';
   img.draggable     = false;
 
@@ -278,7 +293,9 @@ function _noteInsertImage(id, src, editor, sec) {
   showNoteImgResizer(id, img, editor, sec);
 }
 
-// ── Image resize overlay (position:fixed, appended to body) ──
+
+
+// ── Overlay-based image resizer functions ─────────────────────
 
 let _nrImg    = null;  // currently selected img
 let _nrEditor = null;
@@ -293,12 +310,12 @@ function showNoteImgResizer(winId, img, editor, sec) {
   _nrSec    = sec;
   _nrWinId  = winId;
 
-  let ov = document.getElementById('note-global-resizer');
+  let ov = document.getElementById('note-img-overlay');
   if (!ov) {
     ov = document.createElement('div');
-    ov.id = 'note-global-resizer';
-    ov.className = 'note-img-resizer-overlay';
-    ['nw', 'ne', 'sw', 'se'].forEach(c => {
+    ov.id = 'note-img-overlay';
+    ov.className = 'note-img-overlay';
+    ['nw','ne','sw','se'].forEach(c => {
       const h = document.createElement('div');
       h.className = 'note-img-handle';
       h.dataset.c = c;
@@ -325,7 +342,7 @@ function showNoteImgResizer(winId, img, editor, sec) {
         const dx   = e2.clientX - startX;
         const newW = Math.max(40, startW + (isLeft ? -dx : dx));
         img.style.width  = newW + 'px';
-        img.style.height = 'auto';          // keep auto so browser scales height proportionally
+        img.style.height = 'auto';
         _positionNoteResizer(ov, img);
       }
 
@@ -343,10 +360,9 @@ function showNoteImgResizer(winId, img, editor, sec) {
     };
   });
 
-  // hide when clicking outside
   setTimeout(() => {
     const onOut = e => {
-      const ov2 = document.getElementById('note-global-resizer');
+      const ov2 = document.getElementById('note-img-overlay');
       if (ov2 && !ov2.contains(e.target) && e.target !== _nrImg) {
         hideNoteImgResizer();
         document.removeEventListener('mousedown', onOut);
@@ -357,7 +373,7 @@ function showNoteImgResizer(winId, img, editor, sec) {
 }
 
 function hideNoteImgResizer() {
-  const ov = document.getElementById('note-global-resizer');
+  const ov = document.getElementById('note-img-overlay');
   if (ov) ov.style.display = 'none';
   _nrImg = _nrEditor = _nrSec = _nrWinId = null;
 }
