@@ -388,6 +388,22 @@ function showNoteImgResizer(winId, img, editor, sec) {
       h.className = 'note-img-handle'; h.dataset.c = c;
       ov.appendChild(h);
     });
+    // delete button — uses _nrImg/_nrEditor/_nrSec at click time
+    const delBtn = document.createElement('button');
+    delBtn.className = 'note-img-del-btn';
+    delBtn.title = 'Elimina immagine';
+    delBtn.textContent = '✕';
+    delBtn.onmousedown = e => { e.preventDefault(); e.stopPropagation(); };
+    delBtn.onclick = e => {
+      e.preventDefault(); e.stopPropagation();
+      if (_nrImg && _nrEditor && _nrSec) {
+        _nrImg.remove();
+        _nrSec.content = _nrEditor.innerHTML;
+        if (window.persistState) window.persistState();
+        hideNoteImgResizer();
+      }
+    };
+    ov.appendChild(delBtn);
     document.body.appendChild(ov);
   }
 
