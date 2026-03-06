@@ -250,7 +250,25 @@
   border-right: 1px solid var(--border);
   padding: 8px;
   overflow-y: auto;
+  flex-shrink: 0;
 }
+
+/* add section button */
+.note-add-sec-btn {
+  width: 100%;
+  background: rgba(99,179,255,.06);
+  border: 1px solid rgba(99,179,255,.18);
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  padding: 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-bottom: 6px;
+  transition: background .15s;
+}
+.note-add-sec-btn:hover { background: rgba(99,179,255,.15); }
+
 .note-sidebar-item {
   padding: 6px 8px;
   cursor: pointer;
@@ -258,11 +276,44 @@
   margin-bottom: 4px;
   font-family: 'Space Mono', monospace;
   font-size: .78rem;
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 .note-sidebar-item.active,
 .note-sidebar-item:hover {
   background: rgba(99,179,255,.15);
 }
+
+.note-sidebar-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* per-section export button */
+.note-sec-export {
+  flex-shrink: 0;
+  background: rgba(99,179,255,.05);
+  border: 1px solid rgba(99,179,255,.18);
+  color: var(--dim);
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: .55rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .15s, color .15s, border-color .15s;
+  line-height: 1;
+}
+.note-sidebar-item:hover .note-sec-export,
+.note-sidebar-item.active .note-sec-export { opacity: 1; }
+.note-sec-export:hover { color: var(--accent); border-color: var(--accent); }
+
 .note-content {
   flex: 1;
   min-width: 0;
@@ -271,35 +322,116 @@
   overflow: hidden;
 }
 
-/* resizer between sidebar and content (visible area) */
+/* resizer between sidebar and content */
 .note-sidebar-resizer {
-  width: 8px;
+  width: 5px;
   cursor: col-resize;
-  background: linear-gradient(90deg, rgba(255,0,0,0.04), rgba(255,0,0,0.08));
-  border-left: 1px solid rgba(255,0,0,0.06);
-  border-right: 1px solid rgba(255,0,0,0.03);
-  -webkit-user-select: none; -moz-user-select: none; user-select: none;
+  background: var(--border);
+  opacity: .4;
+  transition: opacity .15s;
+  flex-shrink: 0;
+}
+.note-sidebar-resizer:hover { opacity: 1; }
+
+/* toolbar above editor */
+.note-content-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 5px 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(6,9,18,.5);
+  flex-shrink: 0;
 }
 
-.note-content-ta {
+.note-toolbar-btn {
+  background: rgba(99,179,255,.07);
+  border: 1px solid rgba(99,179,255,.2);
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.note-toolbar-btn:hover { background: rgba(99,179,255,.15); }
+
+/* contenteditable editor */
+.note-content-editable {
   flex: 1;
-  width: 100%;
-  padding: 18px 22px;
+  padding: 18px 24px;
   box-sizing: border-box;
-  background: transparent;
-  border: none;
   outline: none;
   color: var(--text);
   font-family: 'Space Mono', monospace;
   font-size: .82rem;
-  line-height: 1.68;
-  resize: none;
+  line-height: 1.78;
+  overflow-y: auto;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
   user-select: text;
+  cursor: text;
 }
 
-.note-sidebar-rename { width: 100%; box-sizing: border-box; padding: 4px 6px; font-family: 'Space Mono', monospace; }
+.note-content-editable:empty::before {
+  content: 'Scrivi qui…';
+  color: rgba(255,255,255,.15);
+  pointer-events: none;
+}
 
-.note-sidebar-label { display: inline-block; width: calc(100% - 8px); }
+.note-content-editable::-webkit-scrollbar { width: 4px; }
+.note-content-editable::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* inline images in editor */
+.note-inline-img {
+  max-width: 100%;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: border-color .15s;
+  display: inline-block;
+  vertical-align: bottom;
+}
+.note-inline-img:hover { border-color: rgba(99,179,255,.4); }
+
+/* ── image resize overlay (appended to <body>, position:fixed) ── */
+.note-img-resizer-overlay {
+  position: fixed;
+  border: 1.5px solid rgba(99,179,255,.7);
+  pointer-events: none;
+  z-index: 99999;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,.5);
+}
+
+.note-img-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border: 2px solid #04060e;
+  border-radius: 2px;
+  pointer-events: all;
+  z-index: 1;
+}
+.note-img-handle[data-c="nw"] { top: -5px;    left: -5px;   cursor: nw-resize; }
+.note-img-handle[data-c="ne"] { top: -5px;    right: -5px;  cursor: ne-resize; }
+.note-img-handle[data-c="sw"] { bottom: -5px; left: -5px;   cursor: sw-resize; }
+.note-img-handle[data-c="se"] { bottom: -5px; right: -5px;  cursor: se-resize; }
+
+.note-sidebar-rename {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 3px 6px;
+  font-family: 'Space Mono', monospace;
+  font-size: .75rem;
+  background: rgba(99,179,255,.08);
+  border: 1px solid var(--accent);
+  border-radius: 3px;
+  color: var(--text);
+  outline: none;
+  user-select: text;
+}
 
 /* ── pannello evento calendario ── */
 .ev-title-inp {
