@@ -37,6 +37,8 @@ function _serializeWins() {
     if (w.notes) item.notes = JSON.parse(JSON.stringify(w.notes));
     if (w.currentNoteId) item.currentNoteId = w.currentNoteId;
     if (w.noteSidebarWidth) item.noteSidebarWidth = w.noteSidebarWidth;
+    if (w.collapsedSections && Object.keys(w.collapsedSections).length)
+      item.collapsedSections = { ...w.collapsedSections };
     if (w.thoughts) item.thoughts = JSON.parse(JSON.stringify(w.thoughts));
     if (w.schemaData) item.schemaData = JSON.parse(JSON.stringify(w.schemaData));
     if (w.pageData) {
@@ -174,7 +176,8 @@ function importState(state) {
         if (w.notes) {
           target.notes = w.notes;
           target.currentNoteId = w.currentNoteId;
-          if (w.noteSidebarWidth) target.noteSidebarWidth = w.noteSidebarWidth;
+          if (w.noteSidebarWidth)   target.noteSidebarWidth   = w.noteSidebarWidth;
+          if (w.collapsedSections)  target.collapsedSections  = w.collapsedSections;
           requestAnimationFrame(() => initNotes(newId));
         }
         if (w.thoughts && target.type === 'brain') {

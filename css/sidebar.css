@@ -299,8 +299,8 @@
   border: 1px solid rgba(99,179,255,.18);
   color: var(--dim);
   border-radius: 3px;
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   font-size: .55rem;
   cursor: pointer;
   display: flex;
@@ -313,6 +313,72 @@
 .note-sidebar-item:hover .note-sec-export,
 .note-sidebar-item.active .note-sec-export { opacity: 1; }
 .note-sec-export:hover { color: var(--accent); border-color: var(--accent); }
+
+/* per-section upload button */
+.note-sec-upload {
+  flex-shrink: 0;
+  background: rgba(52,211,153,.05);
+  border: 1px solid rgba(52,211,153,.18);
+  color: var(--dim);
+  border-radius: 3px;
+  width: 16px;
+  height: 16px;
+  font-size: .55rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .15s, color .15s, border-color .15s;
+  line-height: 1;
+}
+.note-sidebar-item:hover .note-sec-upload,
+.note-sidebar-item.active .note-sec-upload { opacity: 1; }
+.note-sec-upload:hover { color: #34d399; border-color: #34d399; }
+
+/* add-child button */
+.note-sec-addchild {
+  flex-shrink: 0;
+  background: rgba(251,191,36,.05);
+  border: 1px solid rgba(251,191,36,.18);
+  color: var(--dim);
+  border-radius: 3px;
+  width: 16px;
+  height: 16px;
+  font-size: .65rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .15s, color .15s, border-color .15s;
+  line-height: 1;
+}
+.note-sidebar-item:hover .note-sec-addchild,
+.note-sidebar-item.active .note-sec-addchild { opacity: 1; }
+.note-sec-addchild:hover { color: #fbbf24; border-color: #fbbf24; }
+
+/* expand/collapse toggle */
+.note-sec-toggle {
+  flex-shrink: 0;
+  width: 14px;
+  background: none;
+  border: none;
+  color: var(--dim);
+  font-size: .55rem;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color .15s;
+}
+.note-sec-toggle:hover { color: var(--accent); }
+
+/* placeholder spacer when no toggle (leaf node) */
+.note-sec-toggle-ph {
+  flex-shrink: 0;
+  width: 14px;
+  display: inline-block;
+}
 
 .note-content {
   flex: 1;
