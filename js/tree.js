@@ -166,61 +166,89 @@ function renderTree(id) {
 // ─── Costruzione elemento DOM nodo ──────────────────────────
 
 // ─── Blocchi (diagramma) ───────────────────────────────────
+// Flatten tutti i nodi dell'albero in un array piatto (BFS)
+function flattenTreeNodes(roots) {
+  const result = [];
+  const queue = [...(roots || [])];
+  while (queue.length) {
+    const n = queue.shift();
+    result.push(n);
+    if (n.children?.length) queue.push(...n.children);
+  }
+  return result;
+}
+
 function renderBlocks(id) {
   const w = WINS[id];
   if (!w) return;
   const cont = document.getElementById('treeblocks' + id);
   if (!cont) return;
 
-  // initialize blocks if absent
-  if (!w.blocks) {
-    w.blocks = [];
-    for (let i=0;i<4;i++) {
-      w.blocks.push({
-        id: 'b' + Date.now() + '-' + i,
-        x: 20 + i*120, y: 20,
-        text: 'Blocco ' + (i+1)
-      });
-    }
-  }
+  // posizioni blocchi: { nodeId → {x, y} } — indipendenti dai dati
+  if (!w.blockPositions) w.blockPositions = {};
 
   cont.innerHTML = '';
   cont.style.position = 'relative';
 
-  w.blocks.forEach(b => {
+  const nodes = flattenTreeNodes(w.treeData?.roots);
+
+  nodes.forEach((node, idx) => {
+    // assegna posizione di default se non esiste
+    if (!w.blockPositions[node.id]) {
+      w.blockPositions[node.id] = {
+        x: 20 + (idx % 5) * 140,
+        y: 20 + Math.floor(idx / 5) * 72,
+      };
+    }
+    const pos = w.blockPositions[node.id];
+
     const el = document.createElement('div');
     el.className = 'tree-block';
     el.style.position = 'absolute';
-    el.style.left = b.x + 'px';
-    el.style.top  = b.y + 'px';
-    el.textContent = b.text;
-    el.dataset.bid = b.id;
-    // start drag
+    el.style.left = pos.x + 'px';
+    el.style.top  = pos.y + 'px';
+    el.textContent = node.label;
+    el.dataset.nid = node.id;
+
+    // drag blocco (aggiorna solo la posizione, non i dati)
     el.onmousedown = e => {
-      currentDraggingBlock = { winId: id, block: b, el };
+      currentDraggingBlock = { winId: id, block: pos, el };
       dragOffsetX = e.clientX;
       dragOffsetY = e.clientY;
       el.style.cursor = 'grabbing';
       e.stopPropagation();
     };
-    // click to edit text
+
+    // click: modifica label → scrive su node.label → sincronizza lista e grafo
     el.onclick = e => {
       e.stopPropagation();
       const ta = document.createElement('textarea');
       ta.className = 'tree-block-ta';
-      ta.value = b.text;
+      ta.value = node.label;
       ta.onmousedown = ev => ev.stopPropagation();
       ta.onblur = () => {
-        b.text = ta.value;
+        const v = ta.value.trim();
+        if (v) node.label = v;
         renderBlocks(id);
+        renderTree(id);
+        if (w.treeGraphScene) w.treeGraphScene.updateFromTree(w.treeData);
         if (window.persistState) window.persistState();
       };
       el.innerHTML = '';
       el.appendChild(ta);
       ta.focus();
     };
+
     cont.appendChild(el);
   });
+
+  // messaggio se nessun nodo
+  if (!nodes.length) {
+    const hint = document.createElement('div');
+    hint.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:var(--dim);font-family:"Space Mono",monospace;font-size:.65rem;text-align:center';
+    hint.textContent = 'Aggiungi nodi dalla vista Lista';
+    cont.appendChild(hint);
+  }
 }
 
 // global listeners for dragging blocks

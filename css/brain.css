@@ -139,11 +139,28 @@
   margin-bottom: 2px;
 }
 
+.brain-thought-region {
+  font-family: 'Space Mono', monospace;
+  font-size: .56rem;
+  color: var(--dim);
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+
 .brain-thought-preview {
   font-family: 'Space Mono', monospace;
   font-size: .58rem;
   color: var(--dim);
   line-height: 1.4;
+}
+
+.brain-region-lbl {
+  font-family: 'Space Mono', monospace;
+  font-size: .64rem;
+  font-weight: 700;
+  padding: 4px 0 2px;
+  min-height: 18px;
 }
 
 /* ── scena 3D ── */

@@ -18,7 +18,7 @@ function getWinType(tplName) {
   if (tplName === 'Mappa')      return 'map';
   if (tplName === 'Albero')     return 'tree';
   if (tplName === 'Note')       return 'notes';
-  if (tplName === 'Cervello')   return 'brain';
+  if (tplName === 'Cervello' || tplName === 'Corpo Umano') return 'brain';
   return 'constellation';
 }
 
@@ -98,7 +98,7 @@ function createWin(tplName, pos) {
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  const allTabs  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Cervello'];
+  const allTabs  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
