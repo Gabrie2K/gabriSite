@@ -17,10 +17,4 @@ document.getElementById('btn-new').onclick = () => {
 };
 
 // ── finestre iniziali ──────────────────────────────────────
-createWin('Computer', { x: 30, y: 20 });
-
-setTimeout(() => {
-  createWin('Calendario', { x: 100, y: 65 });
-  // scrolla verso l'ora corrente dopo il render
-  setTimeout(() => scrollToNow(2), 300);
-}, 180);
+createWin('Home', { x: 50, y: 30 });
