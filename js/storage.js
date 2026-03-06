@@ -30,7 +30,7 @@ function _serializeWins() {
     if (w.pins)  item.pins  = JSON.parse(JSON.stringify(w.pins));
     if (w.events) item.events = JSON.parse(JSON.stringify(w.events));
     if (w.treeData) item.treeData = JSON.parse(JSON.stringify(w.treeData));
-    if (w.blocks) item.blocks = JSON.parse(JSON.stringify(w.blocks));
+    if (w.blockPositions) item.blockPositions = JSON.parse(JSON.stringify(w.blockPositions));
     if (w.calState) item.calState = JSON.parse(JSON.stringify(w.calState));
     if (w.mapLayers) item.mapLayers = JSON.parse(JSON.stringify(w.mapLayers));
     if (w.mapState) item.mapState = JSON.parse(JSON.stringify(w.mapState));
@@ -156,8 +156,9 @@ function importState(state) {
           renderPinList(newId);
           (target.pins || []).forEach(p => addPinMesh(newId, p));
         }
-        if (w.events)   target.events   = w.events;
-        if (w.treeData) target.treeData = w.treeData;
+        if (w.events)         target.events         = w.events;
+        if (w.treeData)       target.treeData       = w.treeData;
+        if (w.blockPositions) target.blockPositions = w.blockPositions;
         if (w.calState) target.calState = w.calState;
         if (w.mapState) target.mapState = w.mapState;
         if (w.notes) {

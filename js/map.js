@@ -327,7 +327,7 @@ function createGlobeScene(id) {
   const onMove = e => {
     if (!dragging) return;
     const dx = e.clientX - lx, dy = e.clientY - ly;
-    theta += dx * .005;
+    theta -= dx * .005;
     phi = Math.max(0.08, Math.min(Math.PI - 0.08, phi - dy * .005));
     lx = e.clientX; ly = e.clientY;
     moved += Math.abs(dx) + Math.abs(dy);
@@ -384,7 +384,7 @@ function createGlobeScene(id) {
     const w = WINS[id];
     // autoplay: ruota lentamente quando abilitato e l'utente non sta trascinando
     if (w?.mapState?.autoSpin && !dragging && !w.mapState.activePopupPin) {
-      theta += dt * AUTO_SPIN_SPEED;
+      theta -= dt * AUTO_SPIN_SPEED;
       setCamera();
       container.classList.add('autospin');
     } else {

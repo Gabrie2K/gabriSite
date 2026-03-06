@@ -262,11 +262,10 @@
 }
 .note-content {
   flex: 1;
-  padding: 12px;
-  overflow-y: auto;
-  font-family: 'Space Mono', monospace;
-  font-size: .82rem;
-  white-space: pre-wrap;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* resizer between sidebar and content (visible area) */
@@ -279,26 +278,20 @@
   -webkit-user-select: none; -moz-user-select: none; user-select: none;
 }
 
-.note-content-view {
-  white-space: pre-wrap;
-  color: var(--text);
-  min-height: 200px;
-}
-
 .note-content-ta {
+  flex: 1;
   width: 100%;
-  height: calc(100% - 8px);
-  min-height: 200px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px;
-  background: rgba(0,0,0,0.02);
+  padding: 18px 22px;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  outline: none;
   color: var(--text);
   font-family: 'Space Mono', monospace;
-  font-size: .88rem;
-  line-height: 1.5;
-  resize: vertical;
-  outline: none;
+  font-size: .82rem;
+  line-height: 1.68;
+  resize: none;
+  user-select: text;
 }
 
 .note-sidebar-rename { width: 100%; box-sizing: border-box; padding: 4px 6px; font-family: 'Space Mono', monospace; }

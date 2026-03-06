@@ -1,48 +1,63 @@
 'use strict';
 /* ═══════════════════════════════════════════════════════════
-   BRAIN — cervello 3D interattivo con nodi-pensiero
-   Dipende da: Three.js (CDN), window-manager.js
+   CORPO UMANO — visualizzazione 2D neon con annotazioni
+   Dipende da: window-manager.js (WINS)
    ═══════════════════════════════════════════════════════════ */
-
-const BRAIN_R = 110; // raggio base cervello
 
 const THOUGHT_COLORS = [
   0x63b3ff, 0xa78bfa, 0x34d399,
   0xfbbf24, 0xfb923c, 0xec4899,
 ];
 
-// ─── HTML struttura finestra cervello ──────────────────────
+// ─── Regioni cliccabili del corpo (coordinate normalizzate 0-1) ──
+const BODY_REGIONS = [
+  { id: 'testa',      label: 'Testa',       cx: 0.500, cy: 0.082, r: 0.068 },
+  { id: 'collo',      label: 'Collo',       cx: 0.500, cy: 0.155, r: 0.030 },
+  { id: 'torace',     label: 'Torace',      cx: 0.500, cy: 0.290, r: 0.095 },
+  { id: 'addome',     label: 'Addome',      cx: 0.500, cy: 0.450, r: 0.085 },
+  { id: 'braccio_sx', label: 'Braccio Sx',  cx: 0.320, cy: 0.350, r: 0.055 },
+  { id: 'braccio_dx', label: 'Braccio Dx',  cx: 0.680, cy: 0.350, r: 0.055 },
+  { id: 'mano_sx',    label: 'Mano Sx',     cx: 0.245, cy: 0.520, r: 0.038 },
+  { id: 'mano_dx',    label: 'Mano Dx',     cx: 0.755, cy: 0.520, r: 0.038 },
+  { id: 'gamba_sx',   label: 'Gamba Sx',    cx: 0.435, cy: 0.680, r: 0.065 },
+  { id: 'gamba_dx',   label: 'Gamba Dx',    cx: 0.565, cy: 0.680, r: 0.065 },
+  { id: 'piede_sx',   label: 'Piede Sx',    cx: 0.425, cy: 0.920, r: 0.042 },
+  { id: 'piede_dx',   label: 'Piede Dx',    cx: 0.575, cy: 0.920, r: 0.042 },
+];
+
+// ─── HTML struttura finestra ──────────────────────────────────
 
 function brainBodyHTML(id) {
   return `
     <div class="brain-wrap" id="brainwrap${id}">
       <div class="brain-left">
-        <div class="brain-left-title">Pensieri</div>
+        <div class="brain-left-title">Annotazioni</div>
         <div class="brain-form" id="brainform${id}">
           <div class="brain-form-hint" id="brainhint${id}">
-            Clicca sul cervello per posizionare un pensiero
+            Clicca su una regione del corpo per aggiungere un'annotazione
           </div>
+          <div class="brain-region-lbl" id="brainregion${id}"></div>
           <input class="brain-form-inp" id="braintitle${id}" placeholder="Titolo…" disabled>
-          <textarea class="brain-form-ta" id="braincontent${id}" placeholder="Messaggio…" disabled></textarea>
-          <button class="brain-form-add" id="brainadd${id}" disabled>+ Aggiungi pensiero</button>
+          <textarea class="brain-form-ta" id="braincontent${id}" placeholder="Descrizione…" disabled></textarea>
+          <button class="brain-form-add" id="brainadd${id}" disabled>+ Aggiungi annotazione</button>
         </div>
         <div class="brain-thought-list" id="brainlist${id}"></div>
       </div>
       <div class="brain-scene" id="brainscene${id}">
-        <div class="brain-scene-hint">drag → ruota &nbsp;·&nbsp; scroll → zoom &nbsp;·&nbsp; click → pensiero</div>
+        <div class="brain-scene-hint">click su regione → annotazione</div>
         <div class="brain-popup" id="brainpopup${id}" style="display:none">
           <div class="brain-popup-hdr">
             <input class="brain-popup-title-inp" id="brainptitle${id}" placeholder="Titolo…">
             <button class="brain-popup-close" id="brainpclose${id}">✕</button>
           </div>
-          <textarea class="brain-popup-note" id="brainpnote${id}" placeholder="Messaggio…"></textarea>
-          <button class="brain-popup-del" id="brainpdel${id}">Elimina pensiero</button>
+          <textarea class="brain-popup-note" id="brainpnote${id}" placeholder="Descrizione…"></textarea>
+          <button class="brain-popup-del" id="brainpdel${id}">Elimina annotazione</button>
         </div>
       </div>
     </div>`;
 }
 
-// ─── Init ───────────────────────────────────────────────────
+// ─── Init ─────────────────────────────────────────────────────
 
 function initBrain(id) {
   const w = WINS[id];
@@ -53,31 +68,34 @@ function initBrain(id) {
   const titleInp  = document.getElementById('braintitle'   + id);
   const contentTa = document.getElementById('braincontent' + id);
   const hintEl    = document.getElementById('brainhint'    + id);
+  const regionLbl = document.getElementById('brainregion'  + id);
 
   w._brainPendingPos = null;
 
   addBtn.onclick = () => {
     const t = titleInp.value.trim();
     if (!t || !w._brainPendingPos) return;
+
     const thought = {
       id:      'th-' + Date.now(),
-      phi:     w._brainPendingPos.phi,
-      theta:   w._brainPendingPos.theta,
+      cx:      w._brainPendingPos.cx,
+      cy:      w._brainPendingPos.cy,
+      region:  w._brainPendingPos.regionId,
       title:   t,
       content: contentTa.value.trim(),
       color:   THOUGHT_COLORS[w.thoughts.length % THOUGHT_COLORS.length],
     };
     w.thoughts.push(thought);
-    addThoughtMesh(id, thought);
     renderThoughtList(id);
+    redrawBody(id);
 
-    // reset form
     titleInp.value  = '';
     contentTa.value = '';
     titleInp.disabled  = true;
     contentTa.disabled = true;
     addBtn.disabled    = true;
-    hintEl.textContent = 'Clicca sul cervello per posizionare un pensiero';
+    hintEl.textContent = 'Clicca su una regione del corpo per aggiungere un\'annotazione';
+    if (regionLbl) regionLbl.textContent = '';
     w._brainPendingPos = null;
 
     if (window.persistState) window.persistState();
@@ -86,396 +104,395 @@ function initBrain(id) {
   document.getElementById('brainpclose' + id).onclick = () => closeThoughtPopup(id);
 
   renderThoughtList(id);
-  createBrainScene(id);
+  createBodyCanvas(id);
 }
 
-// ─── Scena Three.js ─────────────────────────────────────────
+// ─── Canvas 2D ────────────────────────────────────────────────
 
-function createBrainScene(id) {
+function createBodyCanvas(id) {
   const container = document.getElementById('brainscene' + id);
-  if (!container || !window.THREE) return;
+  if (!container) return;
 
-  const W = container.offsetWidth  || 600;
-  const H = container.offsetHeight || 400;
-
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-  renderer.setSize(W, H);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-  renderer.setClearColor(0x000000, 0);
-  container.insertBefore(renderer.domElement, container.firstChild);
-
-  const scene = new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0xaaccff, 0.7));
-
-  const sun = new THREE.DirectionalLight(0xddeeff, 1.2);
-  sun.position.set(300, 250, 200);
-  scene.add(sun);
-
-  const fill = new THREE.DirectionalLight(0x224488, 0.5);
-  fill.position.set(-200, -100, -300);
-  scene.add(fill);
-
-  const camera = new THREE.PerspectiveCamera(45, W / H, 1, 3000);
-  let camR = 370, theta = 0.3, phi = 1.25;
-
-  function setCamera() {
-    camera.position.set(
-      camR * Math.sin(phi) * Math.cos(theta),
-      camR * Math.cos(phi),
-      camR * Math.sin(phi) * Math.sin(theta)
-    );
-    camera.lookAt(0, 0, 0);
-  }
-  setCamera();
-
-  // ── Colori lobi (palette blu app) ───────────────────────
-  // Camera è principalmente verso +X → "frontale" = +X, "occipitale" = -X
-  function getLobeColor(nx, ny) {
-    // Occipitale: lobo posteriore (lontano dalla camera)
-    if (nx < -0.40)                      return new THREE.Color(0x0a2a50);
-    // Parietale: lobo superiore posteriore
-    if (ny > 0.20 && nx < 0.30)         return new THREE.Color(0x0f3464);
-    // Frontale superiore: lobo frontale alto
-    if (ny > 0.02 && nx >= 0.30)        return new THREE.Color(0x1a5090);
-    // Frontale inferiore: lobo frontale basso
-    if (nx > 0.12 && ny > -0.38)        return new THREE.Color(0x2870b8);
-    // Temporale: lobo inferiore/laterale
-    return new THREE.Color(0x1e5a8c);
-  }
-
-  // ── Cervello principale (non-indexed per vertex colors per-face) ──
-  const brainGeoIdx = new THREE.SphereGeometry(BRAIN_R, 72, 72);
-  const brainGeo    = brainGeoIdx.toNonIndexed(); // ogni triangolo ha 3 vertici propri
-  const bpos        = brainGeo.attributes.position;
-
-  // Step 1: assegna colore per-faccia PRIMA del displacement
-  // (usiamo le posizioni originali sulla sfera unitaria)
-  const colorArr = new Float32Array(bpos.count * 3);
-  for (let i = 0; i < bpos.count; i += 3) {
-    // centroide del triangolo
-    const cx = (bpos.getX(i) + bpos.getX(i+1) + bpos.getX(i+2)) / 3;
-    const cy = (bpos.getY(i) + bpos.getY(i+1) + bpos.getY(i+2)) / 3;
-    const cr = Math.sqrt(
-      cx*cx + cy*cy +
-      ((bpos.getZ(i)+bpos.getZ(i+1)+bpos.getZ(i+2))/3)**2
-    );
-    const col = getLobeColor(cx / cr, cy / cr);
-    for (let j = 0; j < 3; j++) {
-      colorArr[(i+j)*3]   = col.r;
-      colorArr[(i+j)*3+1] = col.g;
-      colorArr[(i+j)*3+2] = col.b;
-    }
-  }
-  brainGeo.setAttribute('color', new THREE.BufferAttribute(colorArr, 3));
-
-  // Step 2: displacement (sulci) dopo aver fissato i colori
-  for (let i = 0; i < bpos.count; i++) {
-    const x = bpos.getX(i), y = bpos.getY(i), z = bpos.getZ(i);
-    const r  = Math.sqrt(x*x + y*y + z*z);
-    const nx = x/r, ny = y/r, nz = z/r;
-    const flatNy = ny * 0.84;
-    const noise =
-      Math.sin(nx * 8  + ny * 6)  * Math.cos(nz * 9)  * 7 +
-      Math.sin(nx * 14 + nz * 11) * Math.cos(ny * 13) * 4 +
-      Math.cos(nx * 20 + ny * 18  + nz * 15) * 2;
-    const disp = BRAIN_R + noise;
-    bpos.setXYZ(i, nx * disp, flatNy * disp, nz * disp);
-  }
-  brainGeo.computeVertexNormals();
-
-  const brainMat  = new THREE.MeshPhongMaterial({
-    vertexColors: true,
-    shininess: 28, transparent: true, opacity: 0.94,
-  });
-  const brainMesh = new THREE.Mesh(brainGeo, brainMat);
-  scene.add(brainMesh);
-
-  // ── Cervelletto ──────────────────────────────────────────
-  const cbGeoIdx = new THREE.SphereGeometry(BRAIN_R * 0.4, 32, 32);
-  const cbGeo    = cbGeoIdx.toNonIndexed();
-  const cpos     = cbGeo.attributes.position;
-
-  // colore piatto per il cervelletto (navy scuro come occipitale)
-  const cbColorArr = new Float32Array(cpos.count * 3);
-  const cbCol = new THREE.Color(0x0c2a4a);
-  for (let i = 0; i < cpos.count; i++) {
-    cbColorArr[i*3] = cbCol.r; cbColorArr[i*3+1] = cbCol.g; cbColorArr[i*3+2] = cbCol.b;
-  }
-  cbGeo.setAttribute('color', new THREE.BufferAttribute(cbColorArr, 3));
-
-  for (let i = 0; i < cpos.count; i++) {
-    const x = cpos.getX(i), y = cpos.getY(i), z = cpos.getZ(i);
-    const r  = Math.sqrt(x*x + y*y + z*z);
-    const nx = x/r, ny = y/r, nz = z/r;
-    const noise = Math.sin(nx * 22 + ny * 18) * Math.cos(nz * 24) * 3;
-    const disp  = BRAIN_R * 0.4 + noise;
-    cpos.setXYZ(i, nx * disp, ny * disp, nz * disp);
-  }
-  cbGeo.computeVertexNormals();
-  const cbMesh = new THREE.Mesh(cbGeo, brainMat.clone());
-  cbMesh.position.set(0, -BRAIN_R * 0.5, -BRAIN_R * 0.65);
-  scene.add(cbMesh);
-
-  // ── Tronco encefalico ────────────────────────────────────
-  const stemGeo  = new THREE.CylinderGeometry(BRAIN_R * 0.11, BRAIN_R * 0.09, BRAIN_R * 0.42, 16);
-  const stemMesh = new THREE.Mesh(
-    stemGeo,
-    new THREE.MeshPhongMaterial({ color: 0x0c2040, shininess: 14 })
-  );
-  stemMesh.position.set(0, -BRAIN_R * 0.9, -BRAIN_R * 0.28);
-  stemMesh.rotation.z = 0.12;
-  scene.add(stemMesh);
-
-  // ── Gruppo pensieri ─────────────────────────────────────
-  const thoughtGroup = new THREE.Group();
-  scene.add(thoughtGroup);
+  const canvas = document.createElement('canvas');
+  canvas.id = 'bodycvs' + id;
+  canvas.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;cursor:crosshair;';
+  container.insertBefore(canvas, container.firstChild);
 
   const w = WINS[id];
   if (!w) return;
-  w._brainScene    = { renderer, scene, camera, thoughtGroup, setCamera };
-  w._brainMeshes   = [brainMesh, cbMesh]; // per raycast click su superficie
-  w._thoughtMeshMap = {};
 
-  // aggiungi pensieri già esistenti
-  (w.thoughts || []).forEach(t => addThoughtMesh(id, t));
+  function resize() {
+    canvas.width  = container.offsetWidth  || 600;
+    canvas.height = container.offsetHeight || 400;
+    redrawBody(id);
+  }
+  resize();
 
-  // ── Controlli mouse ─────────────────────────────────────
-  const el = renderer.domElement;
-  let dragging = false, lx = 0, ly = 0, moved = 0;
-
-  el.addEventListener('mousedown', e => {
-    dragging = true; lx = e.clientX; ly = e.clientY; moved = 0;
-    container.classList.add('spinning'); e.stopPropagation();
-  });
-
-  const onMove = e => {
-    if (!dragging) return;
-    const dx = e.clientX - lx, dy = e.clientY - ly;
-    theta -= dx * 0.005;
-    phi    = Math.max(0.08, Math.min(Math.PI - 0.08, phi - dy * 0.005));
-    lx = e.clientX; ly = e.clientY;
-    moved += Math.abs(dx) + Math.abs(dy);
-    setCamera();
-  };
-
-  const onUp = e => {
-    if (!dragging) return;
-    dragging = false; container.classList.remove('spinning');
-    if (moved < 5) handleBrainClick(id, e, el, camera);
-  };
-
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('mouseup',   onUp);
-
-  el.addEventListener('wheel', e => {
-    e.preventDefault(); e.stopPropagation();
-    camR = Math.max(170, Math.min(900, camR + e.deltaY * 0.3));
-    setCamera();
-  }, { passive: false });
-
-  // ── Resize ───────────────────────────────────────────────
-  const ro = new ResizeObserver(() => {
-    if (!WINS[id]) return;
-    const nw = container.offsetWidth, nh = container.offsetHeight;
-    if (!nw || !nh) return;
-    renderer.setSize(nw, nh);
-    camera.aspect = nw / nh; camera.updateProjectionMatrix();
-  });
+  const ro = new ResizeObserver(resize);
   ro.observe(container);
 
-  // ── Render loop ──────────────────────────────────────────
-  let rafId;
-  function animate() {
-    if (!WINS[id]) return;
-    rafId = requestAnimationFrame(animate);
-    renderer.render(scene, camera);
-  }
-  rafId = requestAnimationFrame(animate);
+  canvas.addEventListener('click', e => handleBodyClick(id, e, canvas));
+  canvas.addEventListener('mousemove', e => handleBodyHover(id, e, canvas));
 
-  // ── Dispose ──────────────────────────────────────────────
   w._brainDispose = () => {
-    cancelAnimationFrame(rafId);
     ro.disconnect();
-    document.removeEventListener('mousemove', onMove);
-    document.removeEventListener('mouseup',   onUp);
-    renderer.dispose();
-    el.remove();
+    canvas.remove();
   };
 }
 
-// ─── Coordinate sferiche ────────────────────────────────────
+// ─── Disegno corpo ────────────────────────────────────────────
 
-function brainSphericalToVec3(phi, theta, r) {
-  return new THREE.Vector3(
-    r * Math.sin(phi) * Math.cos(theta),
-    r * Math.cos(phi),
-    r * Math.sin(phi) * Math.sin(theta)
-  );
+function redrawBody(id) {
+  const cvs = document.getElementById('bodycvs' + id);
+  if (!cvs) return;
+  const ctx = cvs.getContext('2d');
+  const W = cvs.width, H = cvs.height;
+  drawBody(ctx, W, H, WINS[id]?.thoughts || [], WINS[id]?._hoverRegion);
 }
 
-// ─── Sprite pensiero (canvas bubble) ────────────────────────
+function drawBody(ctx, W, H, thoughts, hoverRegionId) {
+  ctx.clearRect(0, 0, W, H);
 
-function makeThoughtSprite(title, color) {
-  const canvas = document.createElement('canvas');
-  canvas.width  = 256;
-  canvas.height = 88;
-  const ctx = canvas.getContext('2d');
+  // ── Sfondo ──────────────────────────────────────────────
+  ctx.fillStyle = '#040a14';
+  ctx.fillRect(0, 0, W, H);
 
-  const hexColor = '#' + (color || 0x63b3ff).toString(16).padStart(6, '0');
-
-  // sfondo bubble arrotondato
-  const rad = 14;
-  ctx.fillStyle   = 'rgba(6,9,18,0.92)';
-  ctx.strokeStyle = hexColor;
-  ctx.lineWidth   = 3;
-
-  ctx.beginPath();
-  ctx.moveTo(rad, 0);
-  ctx.lineTo(canvas.width - rad, 0);
-  ctx.quadraticCurveTo(canvas.width, 0, canvas.width, rad);
-  ctx.lineTo(canvas.width, canvas.height - rad);
-  ctx.quadraticCurveTo(canvas.width, canvas.height, canvas.width - rad, canvas.height);
-  ctx.lineTo(rad, canvas.height);
-  ctx.quadraticCurveTo(0, canvas.height, 0, canvas.height - rad);
-  ctx.lineTo(0, rad);
-  ctx.quadraticCurveTo(0, 0, rad, 0);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // testo
-  ctx.fillStyle    = hexColor;
-  ctx.font         = 'bold 20px Space Mono, monospace';
-  ctx.textAlign    = 'center';
-  ctx.textBaseline = 'middle';
-  const label = title.length > 16 ? title.slice(0, 14) + '…' : title;
-  ctx.fillText(label, canvas.width / 2, canvas.height / 2);
-
-  const tex    = new THREE.CanvasTexture(canvas);
-  const mat    = new THREE.SpriteMaterial({ map: tex, transparent: true });
-  const sprite = new THREE.Sprite(mat);
-  sprite.scale.set(78, 27, 1);
-  return sprite;
-}
-
-// ─── Aggiunta / rimozione mesh pensiero ─────────────────────
-
-function addThoughtMesh(id, thought) {
-  const w = WINS[id];
-  if (!w?._brainScene) return;
-
-  const { thoughtGroup } = w._brainScene;
-  if (!w._thoughtMeshMap) w._thoughtMeshMap = {};
-
-  // rimuovi mesh vecchie se presenti
-  const old = w._thoughtMeshMap[thought.id];
-  if (old) {
-    if (old.anchor) thoughtGroup.remove(old.anchor);
-    if (old.line)   thoughtGroup.remove(old.line);
-    if (old.sprite) thoughtGroup.remove(old.sprite);
+  // griglia in basso (stile retro-futurista)
+  const gridY = H * 0.82;
+  const gridCols = 20, gridRows = 8;
+  const cellW = W / gridCols, cellH = (H - gridY) / gridRows;
+  ctx.strokeStyle = 'rgba(0,80,200,.22)';
+  ctx.lineWidth = 0.8;
+  for (let c = 0; c <= gridCols; c++) {
+    ctx.beginPath();
+    ctx.moveTo(c * cellW, gridY);
+    ctx.lineTo(W / 2 + (c * cellW - W / 2) * 2.5, H + cellH * 2);
+    ctx.stroke();
+  }
+  for (let r = 0; r <= gridRows; r++) {
+    const y = gridY + r * cellH;
+    const shrink = r / gridRows;
+    const margin = shrink * W * 0.35;
+    ctx.beginPath();
+    ctx.moveTo(margin, y); ctx.lineTo(W - margin, y);
+    ctx.stroke();
   }
 
-  const col       = thought.color || 0x63b3ff;
-  const surfacePt = brainSphericalToVec3(thought.phi, thought.theta, BRAIN_R + 2);
-  const floatPt   = brainSphericalToVec3(thought.phi, thought.theta, BRAIN_R + 58);
+  // ── Parametri corpo ──────────────────────────────────────
+  // Il corpo è scalato rispetto all'altezza del canvas
+  const bodyH = H * 0.88;
+  const bodyW = bodyH * 0.42;
+  const ox = W / 2;     // centro orizzontale
+  const oy = H * 0.04;  // offset verticale (top del corpo)
 
-  // sfera di ancoraggio sulla superficie
-  const anchor = new THREE.Mesh(
-    new THREE.SphereGeometry(5.5, 12, 12),
-    new THREE.MeshBasicMaterial({ color: col })
-  );
-  anchor.position.copy(surfacePt);
-  thoughtGroup.add(anchor);
+  function bx(nx) { return ox + (nx - 0.5) * bodyW * 2.4; }
+  function by(ny) { return oy + ny * bodyH; }
 
-  // filo singolo
-  const lineGeo = new THREE.BufferGeometry().setFromPoints([surfacePt.clone(), floatPt.clone()]);
-  const line    = new THREE.Line(
-    lineGeo,
-    new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.55 })
-  );
-  thoughtGroup.add(line);
+  // ── Helper glow ──────────────────────────────────────────
+  function setGlow(color, blur) {
+    ctx.shadowColor = color;
+    ctx.shadowBlur  = blur;
+    ctx.strokeStyle = color;
+  }
+  function clearGlow() { ctx.shadowBlur = 0; }
 
-  // label bubble
-  const sprite = makeThoughtSprite(thought.title, col);
-  sprite.position.copy(floatPt);
-  thoughtGroup.add(sprite);
+  // ── Corpo: outline principale ────────────────────────────
+  ctx.lineWidth = 2;
+  setGlow('#00d4ff', 16);
 
-  w._thoughtMeshMap[thought.id] = { anchor, line, sprite };
-}
+  // Testa
+  const headCX = bx(0.5), headCY = by(0.08), headR = bodyH * 0.068;
+  ctx.beginPath();
+  ctx.arc(headCX, headCY, headR, 0, Math.PI * 2);
+  ctx.stroke();
 
-function removeThoughtMesh(id, thoughtId) {
-  const w = WINS[id];
-  if (!w?._brainScene || !w._thoughtMeshMap) return;
-  const { thoughtGroup } = w._brainScene;
-  const m = w._thoughtMeshMap[thoughtId];
-  if (!m) return;
-  if (m.anchor) thoughtGroup.remove(m.anchor);
-  if (m.line)   thoughtGroup.remove(m.line);
-  if (m.sprite) thoughtGroup.remove(m.sprite);
-  delete w._thoughtMeshMap[thoughtId];
-}
+  // Collo
+  ctx.beginPath();
+  ctx.moveTo(bx(0.46), by(0.145));
+  ctx.lineTo(bx(0.46), by(0.175));
+  ctx.moveTo(bx(0.54), by(0.145));
+  ctx.lineTo(bx(0.54), by(0.175));
+  ctx.stroke();
 
-// ─── Gestione click su cervello ─────────────────────────────
+  // Torso
+  ctx.beginPath();
+  ctx.moveTo(bx(0.46), by(0.175));
+  ctx.bezierCurveTo(bx(0.36), by(0.20), bx(0.30), by(0.26), bx(0.30), by(0.36));
+  ctx.bezierCurveTo(bx(0.30), by(0.46), bx(0.36), by(0.52), bx(0.40), by(0.54));
+  ctx.lineTo(bx(0.42), by(0.60));
+  ctx.moveTo(bx(0.54), by(0.175));
+  ctx.bezierCurveTo(bx(0.64), by(0.20), bx(0.70), by(0.26), bx(0.70), by(0.36));
+  ctx.bezierCurveTo(bx(0.70), by(0.46), bx(0.64), by(0.52), bx(0.60), by(0.54));
+  ctx.lineTo(bx(0.58), by(0.60));
+  ctx.stroke();
 
-function handleBrainClick(id, e, el, camera) {
-  const w = WINS[id];
-  if (!w) return;
+  // Spalle e linea clavicola
+  ctx.beginPath();
+  ctx.moveTo(bx(0.30), by(0.22));
+  ctx.lineTo(bx(0.70), by(0.22));
+  ctx.stroke();
 
-  const rect  = el.getBoundingClientRect();
-  const mouse = new THREE.Vector2(
-    ((e.clientX - rect.left) / rect.width)  *  2 - 1,
-    ((e.clientY - rect.top)  / rect.height) * -2 + 1
-  );
-  const ray = new THREE.Raycaster();
-  ray.setFromCamera(mouse, camera);
+  // Braccia
+  ctx.beginPath();
+  // braccio sx
+  ctx.moveTo(bx(0.30), by(0.22));
+  ctx.bezierCurveTo(bx(0.24), by(0.28), bx(0.22), by(0.38), bx(0.24), by(0.50));
+  ctx.bezierCurveTo(bx(0.25), by(0.55), bx(0.24), by(0.58), bx(0.22), by(0.60));
+  // mano sx
+  ctx.bezierCurveTo(bx(0.20), by(0.62), bx(0.18), by(0.64), bx(0.19), by(0.66));
+  ctx.bezierCurveTo(bx(0.195), by(0.68), bx(0.22), by(0.68), bx(0.23), by(0.66));
+  // braccio dx
+  ctx.moveTo(bx(0.70), by(0.22));
+  ctx.bezierCurveTo(bx(0.76), by(0.28), bx(0.78), by(0.38), bx(0.76), by(0.50));
+  ctx.bezierCurveTo(bx(0.75), by(0.55), bx(0.76), by(0.58), bx(0.78), by(0.60));
+  // mano dx
+  ctx.bezierCurveTo(bx(0.80), by(0.62), bx(0.82), by(0.64), bx(0.81), by(0.66));
+  ctx.bezierCurveTo(bx(0.805), by(0.68), bx(0.78), by(0.68), bx(0.77), by(0.66));
+  ctx.stroke();
 
-  // controlla prima gli anchor esistenti
-  const anchors = [];
-  const tmm = w._thoughtMeshMap || {};
-  Object.keys(tmm).forEach(tid => {
-    if (tmm[tid]?.anchor) anchors.push(tmm[tid].anchor);
-  });
+  // Bacino
+  ctx.beginPath();
+  ctx.moveTo(bx(0.42), by(0.60));
+  ctx.bezierCurveTo(bx(0.38), by(0.61), bx(0.35), by(0.62), bx(0.36), by(0.64));
+  ctx.bezierCurveTo(bx(0.37), by(0.66), bx(0.43), by(0.66), bx(0.44), by(0.64));
+  ctx.moveTo(bx(0.58), by(0.60));
+  ctx.bezierCurveTo(bx(0.62), by(0.61), bx(0.65), by(0.62), bx(0.64), by(0.64));
+  ctx.bezierCurveTo(bx(0.63), by(0.66), bx(0.57), by(0.66), bx(0.56), by(0.64));
+  ctx.stroke();
 
-  if (anchors.length > 0) {
-    const aHits = ray.intersectObjects(anchors);
-    if (aHits.length > 0) {
-      const hitAnchor = aHits[0].object;
-      const thought   = (w.thoughts || []).find(t => tmm[t.id]?.anchor === hitAnchor);
-      if (thought) {
-        openThoughtPopup(id, thought, e.clientX, e.clientY);
-        return;
-      }
+  // Gambe
+  ctx.beginPath();
+  // gamba sx
+  ctx.moveTo(bx(0.44), by(0.64));
+  ctx.bezierCurveTo(bx(0.42), by(0.72), bx(0.41), by(0.80), bx(0.42), by(0.88));
+  ctx.bezierCurveTo(bx(0.42), by(0.93), bx(0.40), by(0.96), bx(0.39), by(0.98));
+  ctx.moveTo(bx(0.56), by(0.64));
+  ctx.bezierCurveTo(bx(0.58), by(0.72), bx(0.59), by(0.80), bx(0.58), by(0.88));
+  ctx.bezierCurveTo(bx(0.58), by(0.93), bx(0.60), by(0.96), bx(0.61), by(0.98));
+  // piedi
+  ctx.moveTo(bx(0.39), by(0.98));
+  ctx.bezierCurveTo(bx(0.37), by(0.985), bx(0.33), by(0.988), bx(0.34), by(0.995));
+  ctx.moveTo(bx(0.61), by(0.98));
+  ctx.bezierCurveTo(bx(0.63), by(0.985), bx(0.67), by(0.988), bx(0.66), by(0.995));
+  ctx.stroke();
+  clearGlow();
+
+  // ── Organi interni ───────────────────────────────────────
+  ctx.lineWidth = 1.5;
+
+  // Cuore
+  setGlow('#ff3377', 14);
+  ctx.fillStyle = 'rgba(255,50,100,.25)';
+  ctx.beginPath();
+  const hx = bx(0.48), hy = by(0.27), hr = bodyH * 0.032;
+  ctx.arc(hx - hr * 0.6, hy, hr, -Math.PI, 0);
+  ctx.arc(hx + hr * 0.6, hy, hr, -Math.PI, 0);
+  ctx.bezierCurveTo(hx + hr * 1.6, hy + hr * 0.7, hx, hy + hr * 2.2, hx - hr * 0.05, hy + hr * 2.4);
+  ctx.bezierCurveTo(hx - hr * 0.05, hy + hr * 2.2, hx - hr * 1.6, hy + hr * 0.7, hx - hr * 1.6, hy);
+  ctx.fill(); ctx.stroke();
+  clearGlow();
+
+  // Polmoni
+  setGlow('#4488cc', 10);
+  ctx.fillStyle = 'rgba(40,100,200,.15)';
+  ctx.strokeStyle = '#4488cc';
+  // polmone sx
+  ctx.beginPath();
+  ctx.ellipse(bx(0.41), by(0.27), bodyH * 0.03, bodyH * 0.055, -0.15, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  // polmone dx
+  ctx.beginPath();
+  ctx.ellipse(bx(0.59), by(0.27), bodyH * 0.03, bodyH * 0.055, 0.15, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  clearGlow();
+
+  // Fegato/addome
+  setGlow('#2266aa', 8);
+  ctx.fillStyle = 'rgba(20,80,160,.18)';
+  ctx.strokeStyle = '#2266aa';
+  ctx.beginPath();
+  ctx.ellipse(bx(0.50), by(0.39), bodyH * 0.065, bodyH * 0.038, 0, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+
+  // Reni
+  ctx.beginPath();
+  ctx.ellipse(bx(0.43), by(0.44), bodyH * 0.022, bodyH * 0.038, 0.2, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(bx(0.57), by(0.44), bodyH * 0.022, bodyH * 0.038, -0.2, 0, Math.PI * 2);
+  ctx.fill(); ctx.stroke();
+  clearGlow();
+
+  // ── Vasi sanguigni principali ────────────────────────────
+  ctx.lineWidth = 1.2;
+
+  // Arteria aorta
+  setGlow('#00bbcc', 8);
+  ctx.strokeStyle = 'rgba(0,180,210,.6)';
+  ctx.beginPath();
+  ctx.moveTo(bx(0.50), by(0.19));
+  ctx.bezierCurveTo(bx(0.50), by(0.24), bx(0.50), by(0.30), bx(0.50), by(0.56));
+  ctx.stroke();
+
+  // Vena cava
+  ctx.strokeStyle = 'rgba(0,130,180,.45)';
+  ctx.beginPath();
+  ctx.moveTo(bx(0.52), by(0.19));
+  ctx.bezierCurveTo(bx(0.53), by(0.30), bx(0.53), by(0.44), bx(0.53), by(0.56));
+  ctx.stroke();
+
+  // Vasi arti superiori
+  ctx.lineWidth = 0.9;
+  ctx.strokeStyle = 'rgba(0,160,200,.4)';
+  ctx.beginPath();
+  ctx.moveTo(bx(0.30), by(0.24));
+  ctx.bezierCurveTo(bx(0.26), by(0.35), bx(0.24), by(0.45), bx(0.22), by(0.62));
+  ctx.moveTo(bx(0.70), by(0.24));
+  ctx.bezierCurveTo(bx(0.74), by(0.35), bx(0.76), by(0.45), bx(0.78), by(0.62));
+  ctx.stroke();
+
+  // Vasi arti inferiori
+  ctx.beginPath();
+  ctx.moveTo(bx(0.47), by(0.60));
+  ctx.bezierCurveTo(bx(0.45), by(0.70), bx(0.44), by(0.82), bx(0.43), by(0.95));
+  ctx.moveTo(bx(0.53), by(0.60));
+  ctx.bezierCurveTo(bx(0.55), by(0.70), bx(0.56), by(0.82), bx(0.57), by(0.95));
+  ctx.stroke();
+  clearGlow();
+
+  // ── Highlight regione hover ──────────────────────────────
+  if (hoverRegionId) {
+    const reg = BODY_REGIONS.find(r => r.id === hoverRegionId);
+    if (reg) {
+      const rx = bx(reg.cx) - ox + ox;
+      const ry = by(reg.cy);
+      const rr = reg.r * bodyH;
+      ctx.save();
+      ctx.globalAlpha = 0.18;
+      ctx.fillStyle = '#00d4ff';
+      ctx.shadowColor = '#00d4ff';
+      ctx.shadowBlur = 20;
+      ctx.beginPath();
+      ctx.arc(bx(reg.cx), ry, rr, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
     }
   }
 
-  // poi controlla superficie cervello
-  const brainMeshes = w._brainMeshes || [];
-  if (brainMeshes.length === 0) return;
+  // ── Marker annotazioni ───────────────────────────────────
+  thoughts.forEach(t => {
+    const tx = bx(t.cx), ty = by(t.cy);
+    const col = '#' + (t.color || 0x63b3ff).toString(16).padStart(6, '0');
 
-  const hits = ray.intersectObjects(brainMeshes);
-  if (hits.length === 0) return;
+    ctx.save();
+    ctx.shadowColor = col;
+    ctx.shadowBlur  = 14;
 
-  const pt  = hits[0].point;
-  const r   = pt.length();
-  const phi = Math.acos(Math.max(-1, Math.min(1, pt.y / r)));
-  const tht = Math.atan2(pt.z, pt.x);
+    // cerchio
+    ctx.fillStyle   = col;
+    ctx.globalAlpha = 0.9;
+    ctx.beginPath();
+    ctx.arc(tx, ty, 7, 0, Math.PI * 2);
+    ctx.fill();
 
-  w._brainPendingPos = { phi, theta: tht };
+    // linea al label
+    ctx.globalAlpha = 0.55;
+    ctx.strokeStyle = col;
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(tx, ty);
+    ctx.lineTo(tx + 18, ty - 14);
+    ctx.stroke();
+    ctx.setLineDash([]);
 
-  // abilita form
+    // label testo
+    ctx.globalAlpha = 1;
+    ctx.fillStyle   = col;
+    ctx.font        = 'bold 10px Space Mono, monospace';
+    ctx.shadowBlur  = 6;
+    ctx.fillText(t.title.length > 14 ? t.title.slice(0, 12) + '…' : t.title, tx + 20, ty - 12);
+    ctx.restore();
+  });
+}
+
+// ─── Hover ────────────────────────────────────────────────────
+
+function handleBodyHover(id, e, canvas) {
+  const w = WINS[id];
+  if (!w) return;
+  const reg = getBodyRegionAt(e, canvas);
+  const rid = reg?.id || null;
+  if (w._hoverRegion !== rid) {
+    w._hoverRegion = rid;
+    canvas.style.cursor = rid ? 'pointer' : 'crosshair';
+    redrawBody(id);
+  }
+}
+
+// ─── Click ────────────────────────────────────────────────────
+
+function handleBodyClick(id, e, canvas) {
+  const w = WINS[id];
+  if (!w) return;
+
+  // check pensiero esistente (priorità)
+  const rect  = canvas.getBoundingClientRect();
+  const mx    = (e.clientX - rect.left) / rect.width;
+  const my    = (e.clientY - rect.top)  / rect.height;
+  const bodyH = 0.88; // rapporto canvasH del corpo
+  const bodyW = bodyH * 0.42 * (rect.height / rect.width) * 2.4;
+  const ox = 0.5;
+  const oy = 0.04;
+
+  for (const t of (w.thoughts || [])) {
+    const dx = mx - (ox + (t.cx - 0.5) * bodyW);
+    const dy = my - (oy + t.cy * bodyH);
+    if (Math.sqrt(dx*dx + dy*dy) < 0.025) {
+      openThoughtPopup(id, t, e.clientX, e.clientY);
+      return;
+    }
+  }
+
+  // check regione corpo
+  const reg = getBodyRegionAt(e, canvas);
+  if (!reg) return;
+
+  w._brainPendingPos = { cx: reg.cx, cy: reg.cy, regionId: reg.id };
+
   const titleInp  = document.getElementById('braintitle'   + id);
   const contentTa = document.getElementById('braincontent' + id);
   const addBtn    = document.getElementById('brainadd'     + id);
   const hintEl    = document.getElementById('brainhint'    + id);
+  const regionLbl = document.getElementById('brainregion'  + id);
 
   if (titleInp)  titleInp.disabled  = false;
   if (contentTa) contentTa.disabled = false;
   if (addBtn)    addBtn.disabled    = false;
-  if (hintEl)    hintEl.textContent = 'Posizione selezionata — compila e aggiungi';
+  if (hintEl)    hintEl.textContent = 'Regione selezionata — compila e aggiungi';
+  if (regionLbl) { regionLbl.textContent = '📍 ' + reg.label; regionLbl.style.color = '#00d4ff'; }
   if (titleInp)  titleInp.focus();
 }
 
-// ─── Popup editing pensiero ─────────────────────────────────
+function getBodyRegionAt(e, canvas) {
+  const rect = canvas.getBoundingClientRect();
+  const mx   = (e.clientX - rect.left)  / rect.width;
+  const my   = (e.clientY - rect.top)   / rect.height;
+  const aspect = rect.width / rect.height;
+
+  return BODY_REGIONS.find(reg => {
+    // cx/cy sono normalizzati rispetto alla stessa trasformazione del disegno
+    const bodyH = 0.88;
+    const bodyW = bodyH * 0.42 / aspect * 2.4;
+    const rx = 0.5 + (reg.cx - 0.5) * bodyW;
+    const ry = 0.04 + reg.cy * bodyH;
+    const rr = reg.r * bodyH / aspect * 0.85; // raggio normalizzato
+    const dx = mx - rx, dy = my - ry;
+    return Math.sqrt(dx*dx + dy*dy) < rr;
+  }) || null;
+}
+
+// ─── Popup editing annotazione ────────────────────────────────
 
 function openThoughtPopup(id, thought, screenX, screenY) {
   const w = WINS[id];
@@ -491,32 +508,21 @@ function openThoughtPopup(id, thought, screenX, screenY) {
   titleInp.value = thought.title;
   noteTA.value   = thought.content || '';
 
-  // posiziona popup vicino al click
   const container = document.getElementById('brainscene' + id);
   if (container) {
     const rect = container.getBoundingClientRect();
     let px = screenX - rect.left + 14;
     let py = screenY - rect.top  - 10;
     if (px + 250 > rect.width)  px = rect.width  - 258;
-    if (py + 180 > rect.height) py = rect.height - 188;
+    if (py + 200 > rect.height) py = rect.height - 210;
     popup.style.left = Math.max(4, px) + 'px';
     popup.style.top  = Math.max(4, py) + 'px';
   }
   popup.style.display = 'block';
 
-  // aggiorna titolo in tempo reale
   titleInp.oninput = () => {
     thought.title = titleInp.value;
-    // ricrea sprite
-    const ms = w._thoughtMeshMap?.[thought.id];
-    if (ms?.sprite && w._brainScene) {
-      const { thoughtGroup } = w._brainScene;
-      thoughtGroup.remove(ms.sprite);
-      const newSprite = makeThoughtSprite(thought.title, thought.color || 0x63b3ff);
-      newSprite.position.copy(ms.sprite.position);
-      thoughtGroup.add(newSprite);
-      ms.sprite = newSprite;
-    }
+    redrawBody(id);
     renderThoughtList(id);
     if (window.persistState) window.persistState();
   };
@@ -528,7 +534,7 @@ function openThoughtPopup(id, thought, screenX, screenY) {
 
   delBtn.onclick = () => {
     w.thoughts = (w.thoughts || []).filter(t => t.id !== thought.id);
-    removeThoughtMesh(id, thought.id);
+    redrawBody(id);
     renderThoughtList(id);
     closeThoughtPopup(id);
     if (window.persistState) window.persistState();
@@ -542,7 +548,7 @@ function closeThoughtPopup(id) {
   if (w) w._brainActiveThought = null;
 }
 
-// ─── Lista pensieri nel pannello sinistro ───────────────────
+// ─── Lista annotazioni ────────────────────────────────────────
 
 function renderThoughtList(id) {
   const w      = WINS[id];
@@ -556,12 +562,25 @@ function renderThoughtList(id) {
     item.className = 'brain-thought-item';
     item.style.borderLeftColor = col;
 
+    const regionName = BODY_REGIONS.find(r => r.id === t.region)?.label || t.region || '';
     const preview = t.content ? t.content.slice(0, 55) + (t.content.length > 55 ? '…' : '') : '';
     item.innerHTML = `
       <div class="brain-thought-title" style="color:${col}">${t.title}</div>
-      ${preview ? `<div class="brain-thought-preview">${preview}</div>` : ''}
+      ${regionName ? `<div class="brain-thought-region">${regionName}</div>` : ''}
+      ${preview    ? `<div class="brain-thought-preview">${preview}</div>` : ''}
     `;
-    item.onclick = () => openThoughtPopup(id, t, 120, 120);
+    item.onclick = () => {
+      const cvs = document.getElementById('bodycvs' + id);
+      const container = document.getElementById('brainscene' + id);
+      if (cvs && container) {
+        const rect = container.getBoundingClientRect();
+        const bodyH = rect.height * 0.88;
+        const bodyW = bodyH * 0.42 * 2.4;
+        const sx = rect.left + rect.width / 2 + (t.cx - 0.5) * bodyW;
+        const sy = rect.top  + rect.height * 0.04 + t.cy * bodyH;
+        openThoughtPopup(id, t, sx, sy);
+      }
+    };
     listEl.appendChild(item);
   });
 }
