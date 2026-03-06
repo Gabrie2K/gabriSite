@@ -1,0 +1,207 @@
+/* ══════════════════════════════════════════
+   DASHBOARD — Home screen stile Xbox 2001
+   ══════════════════════════════════════════ */
+
+.dash-wrap {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 30%, rgba(10,20,50,.95) 0%, rgba(2,4,12,1) 100%);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* scanline overlay */
+.dash-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(0,0,0,.08) 0px,
+    rgba(0,0,0,.08) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* logo */
+.dash-logo {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Syne', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: .18em;
+  color: rgba(255,255,255,.85);
+  text-transform: uppercase;
+  z-index: 2;
+  animation: dashLogoPulse 4s ease-in-out infinite;
+}
+
+@keyframes dashLogoPulse {
+  0%, 100% { opacity: .85; text-shadow: 0 0 12px rgba(99,179,255,.4); }
+  50%       { opacity: 1;   text-shadow: 0 0 24px rgba(99,179,255,.8); }
+}
+
+/* carousel wrapper */
+.dash-carousel {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  z-index: 2;
+  padding: 10px 40px;
+  position: relative;
+}
+
+/* nav arrows */
+.dash-arrow {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,.3);
+  font-size: 1.6rem;
+  cursor: pointer;
+  padding: 6px 10px;
+  transition: color .2s;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.dash-arrow:hover { color: rgba(255,255,255,.8); }
+
+/* individual card */
+.dash-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.08);
+  background: rgba(255,255,255,.03);
+  cursor: pointer;
+  transition: transform .22s ease, background .22s, border-color .22s, box-shadow .22s;
+  width: 110px;
+  flex-shrink: 0;
+  opacity: .55;
+  transform: scale(.88);
+}
+
+.dash-item:hover {
+  opacity: .8;
+  transform: scale(.92);
+}
+
+.dash-item.active {
+  opacity: 1;
+  transform: scale(1.08);
+  border-color: var(--item-color, #63b3ff);
+  background: rgba(255,255,255,.06);
+  box-shadow: 0 0 28px rgba(0,0,0,.5),
+              0 0 16px color-mix(in srgb, var(--item-color, #63b3ff) 35%, transparent);
+}
+
+.dash-item-sym {
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--item-color, #63b3ff);
+  filter: drop-shadow(0 0 8px var(--item-color, #63b3ff));
+  transition: filter .22s;
+}
+
+.dash-item.active .dash-item-sym {
+  filter: drop-shadow(0 0 14px var(--item-color, #63b3ff));
+}
+
+.dash-item-name {
+  font-family: 'Space Mono', monospace;
+  font-size: .62rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: rgba(255,255,255,.75);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.dash-item.active .dash-item-name {
+  color: var(--item-color, #63b3ff);
+}
+
+.dash-item-desc {
+  font-family: 'Space Mono', monospace;
+  font-size: .55rem;
+  color: rgba(255,255,255,.35);
+  text-align: center;
+  line-height: 1.5;
+}
+
+.dash-item.active .dash-item-desc {
+  color: rgba(255,255,255,.55);
+}
+
+/* footer hint */
+.dash-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Space Mono', monospace;
+  font-size: .54rem;
+  color: rgba(255,255,255,.2);
+  white-space: nowrap;
+  z-index: 2;
+  pointer-events: none;
+}
+
+/* active item detail panel (below carousel) */
+.dash-detail {
+  margin-top: 20px;
+  z-index: 2;
+  text-align: center;
+  min-height: 48px;
+}
+
+.dash-detail-name {
+  font-family: 'Syne', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: rgba(255,255,255,.9);
+  letter-spacing: .06em;
+}
+
+.dash-detail-desc {
+  margin-top: 5px;
+  font-family: 'Space Mono', monospace;
+  font-size: .62rem;
+  color: rgba(255,255,255,.4);
+}
+
+/* open button */
+.dash-open-btn {
+  margin-top: 18px;
+  z-index: 2;
+  background: rgba(99,179,255,.1);
+  border: 1px solid rgba(99,179,255,.4);
+  color: #63b3ff;
+  font-family: 'Space Mono', monospace;
+  font-size: .68rem;
+  letter-spacing: .08em;
+  padding: 8px 28px;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background .18s, border-color .18s, box-shadow .18s;
+}
+
+.dash-open-btn:hover {
+  background: rgba(99,179,255,.2);
+  border-color: rgba(99,179,255,.7);
+  box-shadow: 0 0 12px rgba(99,179,255,.3);
+}
