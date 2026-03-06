@@ -19,6 +19,8 @@ function getWinType(tplName) {
   if (tplName === 'Albero')     return 'tree';
   if (tplName === 'Note')       return 'notes';
   if (tplName === 'Cervello' || tplName === 'Corpo Umano') return 'brain';
+  if (tplName === 'Home')       return 'dashboard';
+  if (tplName === 'Schema')     return 'schema';
   return 'constellation';
 }
 
@@ -82,6 +84,8 @@ function getBodyHTML(id, tplName, type) {
   if (type === 'tree')         return treeBodyHTML(id);
   if (type === 'notes')        return notesBodyHTML(id);
   if (type === 'brain')        return brainBodyHTML(id);
+  if (type === 'dashboard')    return dashBodyHTML(id);
+  if (type === 'schema')       return schemaBodyHTML(id);
   return graphBodyHTML(id);
 }
 
@@ -98,7 +102,7 @@ function createWin(tplName, pos) {
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  const allTabs  = [...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano'];
+  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
@@ -164,6 +168,8 @@ function createWin(tplName, pos) {
     winData.currentNoteId = 'n1';
   } else if (type === 'brain') {
     winData.thoughts = [];
+  } else if (type === 'schema') {
+    winData.schemaData = null; // initialized lazily in initSchema
   }
 
   WINS[id] = winData;
@@ -189,6 +195,10 @@ function createWin(tplName, pos) {
     requestAnimationFrame(() => initNotes(id));
   } else if (type === 'brain') {
     requestAnimationFrame(() => initBrain(id));
+  } else if (type === 'dashboard') {
+    requestAnimationFrame(() => initDashboard(id));
+  } else if (type === 'schema') {
+    requestAnimationFrame(() => initSchema(id));
   }
 
   return id;
@@ -221,6 +231,8 @@ function closeW(id) {
   w.scene3d?.dispose();
   w._mapDispose?.();
   w._brainDispose?.();
+  w._dashDispose?.();
+  w._schemaDispose?.();
   w.win.remove();
   document.getElementById('tb' + id)?.remove();
   delete WINS[id];
@@ -317,6 +329,8 @@ function switchLayer(id, l) {
   w.scene3d?.dispose(); w.scene3d = null;
   w._mapDispose?.(); w._mapDispose = null;
   w._brainDispose?.(); w._brainDispose = null;
+  w._dashDispose?.(); w._dashDispose = null;
+  w._schemaDispose?.(); w._schemaDispose = null;
 
   wb.innerHTML = getBodyHTML(id, l, newType);
 
@@ -362,6 +376,10 @@ function switchLayer(id, l) {
   } else if (newType === 'brain') {
     if (!w.thoughts) w.thoughts = [];
     requestAnimationFrame(() => initBrain(id));
+  } else if (newType === 'dashboard') {
+    requestAnimationFrame(() => initDashboard(id));
+  } else if (newType === 'schema') {
+    requestAnimationFrame(() => initSchema(id));
   }
 }
 

@@ -38,6 +38,7 @@ function _serializeWins() {
     if (w.currentNoteId) item.currentNoteId = w.currentNoteId;
     if (w.noteSidebarWidth) item.noteSidebarWidth = w.noteSidebarWidth;
     if (w.thoughts) item.thoughts = JSON.parse(JSON.stringify(w.thoughts));
+    if (w.schemaData) item.schemaData = JSON.parse(JSON.stringify(w.schemaData));
     wins.push(item);
   });
   return wins;
@@ -169,6 +170,9 @@ function importState(state) {
         }
         if (w.thoughts && target.type === 'brain') {
           target.thoughts = w.thoughts;
+        }
+        if (w.schemaData && target.type === 'schema') {
+          target.schemaData = w.schemaData;
         }
       }, 150);
     } catch (e) { console.warn('[storage] failed to recreate win', e); }
