@@ -403,7 +403,9 @@
   border-radius: 2px;
   box-shadow: 0 0 0 1px rgba(0,0,0,.5);
 }
+.note-img-wrapper img { display: block; }
 
+.note-img-wrapper:hover .img-resize-handle { opacity: 1; }
 .note-img-handle {
   position: absolute;
   width: 10px;
