@@ -105,14 +105,14 @@ function createBrainScene(id) {
   container.insertBefore(renderer.domElement, container.firstChild);
 
   const scene = new THREE.Scene();
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  scene.add(new THREE.AmbientLight(0xaaccff, 0.7));
 
-  const sun = new THREE.DirectionalLight(0xffddcc, 1.1);
-  sun.position.set(200, 300, 200);
+  const sun = new THREE.DirectionalLight(0xddeeff, 1.2);
+  sun.position.set(300, 250, 200);
   scene.add(sun);
 
-  const fill = new THREE.DirectionalLight(0x8899ff, 0.35);
-  fill.position.set(-200, -100, -200);
+  const fill = new THREE.DirectionalLight(0x224488, 0.5);
+  fill.position.set(-200, -100, -300);
   scene.add(fill);
 
   const camera = new THREE.PerspectiveCamera(45, W / H, 1, 3000);
@@ -128,43 +128,85 @@ function createBrainScene(id) {
   }
   setCamera();
 
-  // ── Cervello principale ──────────────────────────────────
-  const brainGeo = new THREE.SphereGeometry(BRAIN_R, 96, 96);
-  const bpos = brainGeo.attributes.position;
+  // ── Colori lobi (palette blu app) ───────────────────────
+  // Camera è principalmente verso +X → "frontale" = +X, "occipitale" = -X
+  function getLobeColor(nx, ny) {
+    // Occipitale: lobo posteriore (lontano dalla camera)
+    if (nx < -0.40)                      return new THREE.Color(0x0a2a50);
+    // Parietale: lobo superiore posteriore
+    if (ny > 0.20 && nx < 0.30)         return new THREE.Color(0x0f3464);
+    // Frontale superiore: lobo frontale alto
+    if (ny > 0.02 && nx >= 0.30)        return new THREE.Color(0x1a5090);
+    // Frontale inferiore: lobo frontale basso
+    if (nx > 0.12 && ny > -0.38)        return new THREE.Color(0x2870b8);
+    // Temporale: lobo inferiore/laterale
+    return new THREE.Color(0x1e5a8c);
+  }
 
+  // ── Cervello principale (non-indexed per vertex colors per-face) ──
+  const brainGeoIdx = new THREE.SphereGeometry(BRAIN_R, 72, 72);
+  const brainGeo    = brainGeoIdx.toNonIndexed(); // ogni triangolo ha 3 vertici propri
+  const bpos        = brainGeo.attributes.position;
+
+  // Step 1: assegna colore per-faccia PRIMA del displacement
+  // (usiamo le posizioni originali sulla sfera unitaria)
+  const colorArr = new Float32Array(bpos.count * 3);
+  for (let i = 0; i < bpos.count; i += 3) {
+    // centroide del triangolo
+    const cx = (bpos.getX(i) + bpos.getX(i+1) + bpos.getX(i+2)) / 3;
+    const cy = (bpos.getY(i) + bpos.getY(i+1) + bpos.getY(i+2)) / 3;
+    const cr = Math.sqrt(
+      cx*cx + cy*cy +
+      ((bpos.getZ(i)+bpos.getZ(i+1)+bpos.getZ(i+2))/3)**2
+    );
+    const col = getLobeColor(cx / cr, cy / cr);
+    for (let j = 0; j < 3; j++) {
+      colorArr[(i+j)*3]   = col.r;
+      colorArr[(i+j)*3+1] = col.g;
+      colorArr[(i+j)*3+2] = col.b;
+    }
+  }
+  brainGeo.setAttribute('color', new THREE.BufferAttribute(colorArr, 3));
+
+  // Step 2: displacement (sulci) dopo aver fissato i colori
   for (let i = 0; i < bpos.count; i++) {
     const x = bpos.getX(i), y = bpos.getY(i), z = bpos.getZ(i);
-    const r  = Math.sqrt(x * x + y * y + z * z);
-    const nx = x / r, ny = y / r, nz = z / r;
-
-    // appiattimento verticale (forma a noce)
+    const r  = Math.sqrt(x*x + y*y + z*z);
+    const nx = x/r, ny = y/r, nz = z/r;
     const flatNy = ny * 0.84;
-
-    // sulci: rumore multi-ottava
     const noise =
       Math.sin(nx * 8  + ny * 6)  * Math.cos(nz * 9)  * 7 +
       Math.sin(nx * 14 + nz * 11) * Math.cos(ny * 13) * 4 +
       Math.cos(nx * 20 + ny * 18  + nz * 15) * 2;
-
     const disp = BRAIN_R + noise;
     bpos.setXYZ(i, nx * disp, flatNy * disp, nz * disp);
   }
   brainGeo.computeVertexNormals();
 
-  const brainMat = new THREE.MeshPhongMaterial({
-    color: 0xc9928e, emissive: 0x3a1a1a, emissiveIntensity: 0.15,
-    shininess: 22, transparent: true, opacity: 0.92,
+  const brainMat  = new THREE.MeshPhongMaterial({
+    vertexColors: true,
+    shininess: 28, transparent: true, opacity: 0.94,
   });
   const brainMesh = new THREE.Mesh(brainGeo, brainMat);
   scene.add(brainMesh);
 
-  // ── Cervelletto ─────────────────────────────────────────
-  const cbGeo = new THREE.SphereGeometry(BRAIN_R * 0.4, 32, 32);
-  const cpos  = cbGeo.attributes.position;
+  // ── Cervelletto ──────────────────────────────────────────
+  const cbGeoIdx = new THREE.SphereGeometry(BRAIN_R * 0.4, 32, 32);
+  const cbGeo    = cbGeoIdx.toNonIndexed();
+  const cpos     = cbGeo.attributes.position;
+
+  // colore piatto per il cervelletto (navy scuro come occipitale)
+  const cbColorArr = new Float32Array(cpos.count * 3);
+  const cbCol = new THREE.Color(0x0c2a4a);
+  for (let i = 0; i < cpos.count; i++) {
+    cbColorArr[i*3] = cbCol.r; cbColorArr[i*3+1] = cbCol.g; cbColorArr[i*3+2] = cbCol.b;
+  }
+  cbGeo.setAttribute('color', new THREE.BufferAttribute(cbColorArr, 3));
+
   for (let i = 0; i < cpos.count; i++) {
     const x = cpos.getX(i), y = cpos.getY(i), z = cpos.getZ(i);
-    const r  = Math.sqrt(x * x + y * y + z * z);
-    const nx = x / r, ny = y / r, nz = z / r;
+    const r  = Math.sqrt(x*x + y*y + z*z);
+    const nx = x/r, ny = y/r, nz = z/r;
     const noise = Math.sin(nx * 22 + ny * 18) * Math.cos(nz * 24) * 3;
     const disp  = BRAIN_R * 0.4 + noise;
     cpos.setXYZ(i, nx * disp, ny * disp, nz * disp);
@@ -174,11 +216,11 @@ function createBrainScene(id) {
   cbMesh.position.set(0, -BRAIN_R * 0.5, -BRAIN_R * 0.65);
   scene.add(cbMesh);
 
-  // ── Tronco encefalico ───────────────────────────────────
+  // ── Tronco encefalico ────────────────────────────────────
   const stemGeo  = new THREE.CylinderGeometry(BRAIN_R * 0.11, BRAIN_R * 0.09, BRAIN_R * 0.42, 16);
   const stemMesh = new THREE.Mesh(
     stemGeo,
-    new THREE.MeshPhongMaterial({ color: 0xb07a76, shininess: 14 })
+    new THREE.MeshPhongMaterial({ color: 0x0c2040, shininess: 14 })
   );
   stemMesh.position.set(0, -BRAIN_R * 0.9, -BRAIN_R * 0.28);
   stemMesh.rotation.z = 0.12;
