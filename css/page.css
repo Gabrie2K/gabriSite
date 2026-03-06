@@ -1,0 +1,196 @@
+/* ══════════════════════════════════════════
+   PAGINA — editor documento stile Loop
+   ══════════════════════════════════════════ */
+
+.page-wrap {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  height: 100%;
+  background: #05070f;
+  overflow: hidden;
+}
+
+/* toolbar */
+.page-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(6,9,18,.85);
+  flex-shrink: 0;
+}
+
+.page-btn {
+  background: rgba(99,179,255,.07);
+  border: 1px solid rgba(99,179,255,.22);
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  font-size: .6rem;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.page-btn:hover { background: rgba(99,179,255,.16); }
+
+/* scrollable document area */
+.page-doc {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page-doc::-webkit-scrollbar { width: 4px; }
+.page-doc::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* inner document (constrained width, centered) */
+.page-inner {
+  width: 100%;
+  max-width: 720px;
+  padding: 0 32px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* ── text block ── */
+.page-block-text {
+  width: 100%;
+}
+
+.page-ta {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  resize: none;
+  overflow: hidden;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .82rem;
+  line-height: 1.78;
+  padding: 4px 0;
+  box-sizing: border-box;
+  user-select: text;
+  min-height: 2em;
+}
+
+.page-ta::placeholder {
+  color: rgba(255,255,255,.15);
+}
+
+/* ── between-block add zone ── */
+.page-add-zone {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  opacity: 0;
+  transition: opacity .2s;
+}
+
+.page-add-zone:hover { opacity: 1; }
+.page-inner:hover .page-add-zone { opacity: .3; }
+.page-add-zone:hover { opacity: 1 !important; }
+
+.page-add-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+.page-add-btn {
+  background: rgba(99,179,255,.07);
+  border: 1px solid rgba(99,179,255,.2);
+  color: rgba(99,179,255,.6);
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: .75rem;
+  line-height: 1;
+  flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.page-add-btn:hover {
+  background: rgba(99,179,255,.18);
+  color: var(--accent);
+}
+
+/* ── image block ── */
+.page-block-img {
+  position: relative;
+  display: inline-block;
+  align-self: flex-start;
+  /* allow inline width */
+  max-width: 100%;
+  user-select: none;
+}
+
+.page-block-img img {
+  display: block;
+  max-width: 100%;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  transition: border-color .15s;
+  pointer-events: none;
+}
+
+.page-block-img:hover img,
+.page-block-img.selected img {
+  border-color: rgba(99,179,255,.45);
+}
+
+/* delete button */
+.page-img-del {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  background: rgba(255,95,87,.8);
+  border: 1px solid rgba(255,95,87,.5);
+  border-radius: 50%;
+  color: #fff;
+  font-size: .62rem;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 4;
+}
+.page-block-img:hover .page-img-del { display: flex; }
+
+/* resize handles — 4 corners */
+.page-img-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--accent);
+  border: 2px solid #05070f;
+  border-radius: 2px;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 3;
+}
+
+.page-block-img:hover .page-img-handle,
+.page-block-img.selected .page-img-handle {
+  opacity: 1;
+}
+
+.page-img-handle[data-c="nw"] { top: -5px;    left: -5px;   cursor: nw-resize; }
+.page-img-handle[data-c="ne"] { top: -5px;    right: -5px;  cursor: ne-resize; }
+.page-img-handle[data-c="sw"] { bottom: -5px; left: -5px;   cursor: sw-resize; }
+.page-img-handle[data-c="se"] { bottom: -5px; right: -5px;  cursor: se-resize; }

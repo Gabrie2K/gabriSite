@@ -239,7 +239,10 @@
 /* ── notebook (note-app) ── */
 .note-app {
   display: flex;
+  flex: 1;
+  min-width: 0;
   height: 100%;
+  width: 100%;
 }
 .note-sidebar {
   width: 170px;

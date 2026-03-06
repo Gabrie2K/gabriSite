@@ -39,6 +39,15 @@ function _serializeWins() {
     if (w.noteSidebarWidth) item.noteSidebarWidth = w.noteSidebarWidth;
     if (w.thoughts) item.thoughts = JSON.parse(JSON.stringify(w.thoughts));
     if (w.schemaData) item.schemaData = JSON.parse(JSON.stringify(w.schemaData));
+    if (w.pageData) {
+      // strip image src from storage to avoid localStorage quota issues with large images
+      // images are re-attached via file picker; only text blocks are persisted
+      try {
+        const pd = JSON.parse(JSON.stringify(w.pageData));
+        pd.blocks = pd.blocks.map(b => b.type === 'image' ? { ...b, src: '' } : b);
+        item.pageData = pd;
+      } catch (_) {}
+    }
     wins.push(item);
   });
   return wins;
@@ -173,6 +182,10 @@ function importState(state) {
         }
         if (w.schemaData && target.type === 'schema') {
           target.schemaData = w.schemaData;
+        }
+        if (w.pageData && target.type === 'page') {
+          target.pageData = w.pageData;
+          requestAnimationFrame(() => renderPage(newId));
         }
       }, 150);
     } catch (e) { console.warn('[storage] failed to recreate win', e); }
