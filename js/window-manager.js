@@ -21,6 +21,7 @@ function getWinType(tplName) {
   if (tplName === 'Cervello' || tplName === 'Corpo Umano') return 'brain';
   if (tplName === 'Home')       return 'dashboard';
   if (tplName === 'Schema')     return 'schema';
+  if (tplName === 'Pagina')     return 'page';
   return 'constellation';
 }
 
@@ -86,6 +87,7 @@ function getBodyHTML(id, tplName, type) {
   if (type === 'brain')        return brainBodyHTML(id);
   if (type === 'dashboard')    return dashBodyHTML(id);
   if (type === 'schema')       return schemaBodyHTML(id);
+  if (type === 'page')         return pageBodyHTML(id);
   return graphBodyHTML(id);
 }
 
@@ -102,7 +104,7 @@ function createWin(tplName, pos) {
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema'];
+  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema', 'Pagina'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
@@ -170,6 +172,8 @@ function createWin(tplName, pos) {
     winData.thoughts = [];
   } else if (type === 'schema') {
     winData.schemaData = null; // initialized lazily in initSchema
+  } else if (type === 'page') {
+    winData.pageData = null; // initialized lazily in initPage
   }
 
   WINS[id] = winData;
@@ -199,6 +203,8 @@ function createWin(tplName, pos) {
     requestAnimationFrame(() => initDashboard(id));
   } else if (type === 'schema') {
     requestAnimationFrame(() => initSchema(id));
+  } else if (type === 'page') {
+    requestAnimationFrame(() => initPage(id));
   }
 
   return id;
@@ -233,6 +239,7 @@ function closeW(id) {
   w._brainDispose?.();
   w._dashDispose?.();
   w._schemaDispose?.();
+  w._pageDispose?.();
   w.win.remove();
   document.getElementById('tb' + id)?.remove();
   delete WINS[id];
@@ -331,6 +338,7 @@ function switchLayer(id, l) {
   w._brainDispose?.(); w._brainDispose = null;
   w._dashDispose?.(); w._dashDispose = null;
   w._schemaDispose?.(); w._schemaDispose = null;
+  w._pageDispose?.(); w._pageDispose = null;
 
   wb.innerHTML = getBodyHTML(id, l, newType);
 
@@ -380,6 +388,8 @@ function switchLayer(id, l) {
     requestAnimationFrame(() => initDashboard(id));
   } else if (newType === 'schema') {
     requestAnimationFrame(() => initSchema(id));
+  } else if (newType === 'page') {
+    requestAnimationFrame(() => initPage(id));
   }
 }
 

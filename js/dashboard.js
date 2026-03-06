@@ -11,6 +11,7 @@ const DASH_ITEMS = [
   { tab: 'Note',        sym: '≡', color: '#fbbf24', desc: 'Notebook testuale con sezioni multiple' },
   { tab: 'Corpo Umano', sym: '♁', color: '#00d4ff', desc: 'Annotazioni anatomiche su corpo umano 2D' },
   { tab: 'Schema',      sym: '⬡', color: '#fb923c', desc: 'Editor di flussi con nodi e connessioni' },
+  { tab: 'Pagina',      sym: '📄', color: '#e2e8f0', desc: 'Documento con testo e immagini ridimensionabili' },
   { tab: 'Computer',    sym: '⬢', color: '#63b3ff', desc: 'Costellazione componenti hardware e software' },
   { tab: 'Server',      sym: '▣', color: '#a78bfa', desc: 'Costellazione infrastruttura server' },
   { tab: 'Example',     sym: '◈', color: '#34d399', desc: 'Costellazione di esempio per un progetto' },
