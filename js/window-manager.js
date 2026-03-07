@@ -21,6 +21,7 @@ function getWinType(tplName) {
   if (tplName === 'Cervello' || tplName === 'Corpo Umano') return 'brain';
   if (tplName === 'Home')       return 'dashboard';
   if (tplName === 'Schema')     return 'schema';
+  if (tplName === 'Pagina')     return 'page';
   return 'constellation';
 }
 
@@ -86,6 +87,7 @@ function getBodyHTML(id, tplName, type) {
   if (type === 'brain')        return brainBodyHTML(id);
   if (type === 'dashboard')    return dashBodyHTML(id);
   if (type === 'schema')       return schemaBodyHTML(id);
+  if (type === 'page')         return pageBodyHTML(id);
   return graphBodyHTML(id);
 }
 
@@ -102,7 +104,7 @@ function createWin(tplName, pos) {
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema'];
+  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema', 'Pagina'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
