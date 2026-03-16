@@ -22,6 +22,8 @@
   <link rel="stylesheet" href="css/brain.css">
   <link rel="stylesheet" href="css/dashboard.css">
   <link rel="stylesheet" href="css/schema.css">
+  <link rel="stylesheet" href="css/galaxy.css">
+  <link rel="stylesheet" href="css/finkb.css">
 </head>
 <body>
 
@@ -46,6 +48,7 @@
   <!-- Dipendenze esterne — devono precedere tutti gli script app -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 
   <!--
     JS — ordine di caricamento:
@@ -58,7 +61,9 @@
     7. sidepanel     → openSP
     8. map           → initMap, mapBodyHTML, addMapPin
     9. tree          → initTree, treeBodyHTML
-   10. main          → entry point
+   10. galaxy        → initCoster, initTektelic, _initGalaxy (D3)
+   11. finkb         → initFinkb, finkbBodyHTML
+   12. main          → entry point
   -->
   <script src="js/templates.js"></script>
   <script src="js/three-helpers.js"></script>
@@ -73,6 +78,8 @@
   <script src="js/notes.js"></script>
   <script src="js/dashboard.js"></script>
   <script src="js/schema.js"></script>
+  <script src="js/galaxy.js"></script>
+  <script src="js/finkb.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/main.js"></script>
 
