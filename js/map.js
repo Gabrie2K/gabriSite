@@ -776,9 +776,7 @@ function openMapPopup(id, pin, screenX, screenY) {
   // tree link
   const linkSel = document.getElementById('mapplinksel' + id);
   const linkGo  = document.getElementById('mapplinkgo' + id);
-
-  function refreshLinkSel() {
-    if (!linkSel) return;
+  if (linkSel) {
     linkSel.innerHTML = '<option value="">— nessuno —</option>';
     Object.keys(WINS).forEach(wid => {
       if (WINS[wid].type === 'tree') {
@@ -789,39 +787,14 @@ function openMapPopup(id, pin, screenX, screenY) {
         linkSel.appendChild(opt);
       }
     });
-    const newOpt = document.createElement('option');
-    newOpt.value = '__new__';
-    newOpt.textContent = '+ Nuovo albero…';
-    linkSel.appendChild(newOpt);
-    if (linkGo) linkGo.style.display = pin.treeLink ? 'block' : 'none';
-  }
-
-  if (linkSel) {
-    refreshLinkSel();
     linkSel.onmousedown = e => e.stopPropagation();
     linkSel.onchange = () => {
-      if (linkSel.value === '__new__') {
-        const name = prompt('Nome albero:', 'Albero');
-        if (!name?.trim()) { linkSel.value = String(pin.treeLink || ''); return; }
-        const newId = createWin('Albero');
-        const tw = WINS[newId];
-        if (tw) {
-          tw.wname = name.trim();
-          const span = document.getElementById('wn' + newId);
-          if (span) span.textContent = '✦ ' + name.trim();
-          const tb = document.getElementById('tb' + newId);
-          if (tb) tb.textContent = '◈ ' + name.trim();
-        }
-        pin.treeLink = newId;
-        refreshLinkSel();
-        if (window.persistState) window.persistState();
-        return;
-      }
       pin.treeLink = linkSel.value ? Number(linkSel.value) : null;
       if (linkGo) linkGo.style.display = pin.treeLink ? 'block' : 'none';
       if (window.persistState) window.persistState();
     };
     if (linkGo) {
+      linkGo.style.display = pin.treeLink ? 'block' : 'none';
       linkGo.onmousedown = e => e.stopPropagation();
       linkGo.onclick = () => {
         if (!pin.treeLink || !WINS[pin.treeLink]) return;
