@@ -154,6 +154,15 @@ function mapBodyHTML(id) {
           </div>
           <div class="map-popup-coords" id="mappcoords${id}"></div>
           <textarea class="map-popup-note" id="mappnote${id}" placeholder="Note…"></textarea>
+          <div class="map-popup-link" id="mapplink${id}">
+            <div class="map-popup-link-row">
+              <span class="map-popup-link-lbl">Albero:</span>
+              <select class="map-popup-link-sel" id="mapplinksel${id}">
+                <option value="">— nessuno —</option>
+              </select>
+            </div>
+            <button class="map-popup-link-go" id="mapplinkgo${id}">Vai all'Albero →</button>
+          </div>
         </div>
       </div>
     </div>`;
@@ -572,10 +581,10 @@ function handleGlobeClick(id, e, canvas, camera) {
   const w = WINS[id];
   if (!w) return;
   const pinMeshes = Object.values(w._pinMeshMap || {}).map(p => p.mesh);
-  const pinHits = ray.intersectObjects(pinMeshes);
+  const pinHits = ray.intersectObjects(pinMeshes, true);
   if (pinHits.length > 0) {
-    const mesh = pinHits[0].object;
-    const pin  = w.pins.find(p => p.id === mesh.userData.pinId);
+    const pinId = pinHits[0].object.userData.pinId;
+    const pin   = w.pins.find(p => p.id === pinId);
     if (pin) { openMapPopup(id, pin, e.clientX, e.clientY); return; }
   }
 
@@ -605,6 +614,7 @@ function addMapPin(id, lat, lon, title, note) {
     note:  note  || '',
     color: PIN_COLORS[pinColorIdx++ % PIN_COLORS.length],
     layer: w.mapState?.activeLayer || 'Tutti', // assegna al layer attivo
+    treeLink: null,
   };
   w.pins.push(pin);
   addPinMesh(id, pin);
@@ -618,32 +628,37 @@ function addPinMesh(id, pin) {
   const { pinGroup } = w._mapScene;
 
   const col = pin.color || 0x63b3ff;
-  const pos = latLonToVec3(pin.lat, pin.lon, MAP_R + 3);
+  const pos = latLonToVec3(pin.lat, pin.lon, MAP_R);
+  const normal = pos.clone().normalize();
 
-  // sfera pin
-  const mesh = new THREE.Mesh(
-    new THREE.SphereGeometry(1, 10, 10),
-    new THREE.MeshBasicMaterial({ color: col })
-  );
-  mesh.position.copy(pos);
-  mesh.userData.pinId = pin.id;
-  mesh.userData.layer = pin.layer || 'Tutti';
-  // visibilità: mostrato se il layer è "Tutti" oppure se è il layer attivo
+  // gruppo pin orientato verso l'esterno del globo
+  const group = new THREE.Group();
+  group.position.copy(pos);
+  group.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), normal);
+  group.userData.pinId = pin.id;
+
+  const mat = new THREE.MeshBasicMaterial({ color: col });
+
+  // testa (sfera)
+  const head = new THREE.Mesh(new THREE.SphereGeometry(2.5, 10, 10), mat);
+  head.position.set(0, 6, 0);
+  head.userData.pinId = pin.id;
+
+  // gambo (cono, punta verso la superficie del globo)
+  const stem = new THREE.Mesh(new THREE.ConeGeometry(2, 6, 8), mat);
+  stem.rotation.z = Math.PI; // punta verso y=0
+  stem.position.set(0, 3, 0);
+  stem.userData.pinId = pin.id;
+
+  group.add(head);
+  group.add(stem);
+
   const activeLayer = w.mapState?.activeLayer || 'Tutti';
-  mesh.visible = activeLayer === 'Tutti' || pin.layer === activeLayer;
+  group.visible = activeLayer === 'Tutti' || pin.layer === activeLayer;
 
-  // anello glow
-  const ring = new THREE.Mesh(
-    new THREE.RingGeometry(4, 6, 20),
-    new THREE.MeshBasicMaterial({ color: col, transparent: true, opacity: 0.35, side: THREE.DoubleSide })
-  );
-  ring.position.copy(pos);
-  ring.lookAt(0, 0, 0);
-  ring.visible = mesh.visible;
-
-  pinGroup.add(mesh); pinGroup.add(ring);
+  pinGroup.add(group);
   if (!w._pinMeshMap) w._pinMeshMap = {};
-  w._pinMeshMap[pin.id] = { mesh, ring };
+  w._pinMeshMap[pin.id] = { mesh: group, ring: group };
 }
 
 function removeMapPin(id, pinId) {
@@ -757,6 +772,45 @@ function openMapPopup(id, pin, screenX, screenY) {
     const el = document.getElementById(pfx + id);
     if (el) { el.onmousedown = e => e.stopPropagation(); el.onkeydown = e => e.stopPropagation(); }
   });
+
+  // tree link
+  const linkSel = document.getElementById('mapplinksel' + id);
+  const linkGo  = document.getElementById('mapplinkgo' + id);
+  if (linkSel) {
+    linkSel.innerHTML = '<option value="">— nessuno —</option>';
+    Object.keys(WINS).forEach(wid => {
+      if (WINS[wid].type === 'tree') {
+        const opt = document.createElement('option');
+        opt.value = wid;
+        opt.textContent = WINS[wid].wname || ('Albero #' + wid);
+        if (String(pin.treeLink) === String(wid)) opt.selected = true;
+        linkSel.appendChild(opt);
+      }
+    });
+    linkSel.onmousedown = e => e.stopPropagation();
+    linkSel.onchange = () => {
+      pin.treeLink = linkSel.value ? Number(linkSel.value) : null;
+      if (linkGo) linkGo.style.display = pin.treeLink ? 'block' : 'none';
+      if (window.persistState) window.persistState();
+    };
+    if (linkGo) {
+      linkGo.style.display = pin.treeLink ? 'block' : 'none';
+      linkGo.onmousedown = e => e.stopPropagation();
+      linkGo.onclick = () => {
+        if (!pin.treeLink || !WINS[pin.treeLink]) return;
+        const tw = WINS[pin.treeLink];
+        if (tw.type !== 'tree') {
+          const tabEl = tw.win.querySelector('.wtab[data-l="Albero"]');
+          if (tabEl) {
+            tw.win.querySelectorAll('.wtab').forEach(t => t.classList.remove('active'));
+            tabEl.classList.add('active');
+            switchLayer(pin.treeLink, 'Albero');
+          }
+        }
+        focusW(pin.treeLink);
+      };
+    }
+  }
 
   const w = WINS[id];
   if (w?.mapState) w.mapState.activePopupPin = pin.id;

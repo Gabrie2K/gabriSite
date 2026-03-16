@@ -315,6 +315,66 @@
 
 .map-popup-note::placeholder { color: var(--dim); }
 
+/* ── link albero nel popup ── */
+.map-popup-link {
+  padding: 6px 10px 8px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.map-popup-link-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-popup-link-lbl {
+  font-family: 'Space Mono', monospace;
+  font-size: .56rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.map-popup-link-sel {
+  flex: 1;
+  background: rgba(99,179,255,.04);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 5px;
+  color: var(--text);
+  font-family: 'Space Mono', monospace;
+  font-size: .6rem;
+  outline: none;
+  cursor: pointer;
+  min-width: 0;
+  transition: border-color .15s;
+}
+
+.map-popup-link-sel:focus { border-color: var(--accent); }
+.map-popup-link-sel option { background: #0a1428; color: var(--text); }
+
+.map-popup-link-go {
+  display: none;
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(99,179,255,.4);
+  background: rgba(99,179,255,.08);
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  font-size: .62rem;
+  cursor: pointer;
+  transition: all .15s;
+  text-align: center;
+}
+
+.map-popup-link-go:hover { background: rgba(99,179,255,.22); }
+
 /* loading overlay del globo */
 .map-loading {
   position: absolute;
