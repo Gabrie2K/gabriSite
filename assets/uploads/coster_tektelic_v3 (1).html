@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coster × TEKTELIC — Ecosystem Map</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#04060d;
+  --panel:rgba(6,10,22,.97);
+  --border:rgba(255,255,255,.07);
+  --text:#dde2f0;
+  --muted:#556080;
+  /* Coster palette */
+  --c-ehc:#f0c040;    --c-bacnet:#34d399; --c-seriey:#fb923c;
+  --c-radio:#c084fc;  --c-sup:#38bdf8;    --c-esp:#f472b6;
+  --c-proto:#94a3b8;  --c-monitor:#4ade80;
+  /* TEKTELIC palette */
+  --t-gw:#22d3ee;     --t-city:#818cf8;   --t-track:#f97316;
+  --t-health:#fb7185; --t-agri:#a3e635;   --t-srv:#60a5fa;
+  --t-safety:#fbbf24;
+  /* Bridge */
+  --br-lorawan:#e879f9;--br-bms:#34d399;  --br-api:#f59e0b;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif}
+body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(255,255,255,.018) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.018) 1px,transparent 1px);background-size:52px 52px;pointer-events:none;z-index:0}
+#canvas{position:fixed;inset:0;z-index:0;pointer-events:none}
+#graph-wrap{position:fixed;inset:0;z-index:1}
+svg{width:100%;height:100%}
+
+/* ── TOPBAR ── */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:20;height:56px;padding:0 22px;display:flex;align-items:center;justify-content:space-between;background:linear-gradient(to bottom,rgba(4,6,13,.96),transparent);pointer-events:none}
+.logo-wrap{display:flex;align-items:center;gap:10px;pointer-events:all}
+.logo-c{font-size:16px;font-weight:700;letter-spacing:2px}.logo-c em{color:var(--c-ehc);font-style:normal}
+.logo-x{color:var(--muted);font-size:14px}
+.logo-t{font-size:16px;font-weight:700;letter-spacing:2px;color:var(--t-gw)}
+#breadcrumb{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);pointer-events:all}
+.bc-item{cursor:pointer;transition:color .15s;padding:4px 7px;border-radius:6px}.bc-item:hover{color:var(--text)}.bc-item.active{color:var(--text);font-weight:600}.bc-sep{color:var(--muted);opacity:.4;font-size:9px}
+#hint{font-size:10.5px;color:var(--muted);background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:20px;padding:5px 12px;pointer-events:all}
+
+/* ── BACK ── */
+#back-btn{position:fixed;bottom:26px;left:24px;z-index:20;display:none;align-items:center;gap:7px;background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:9px 15px;font-size:12px;font-weight:600;cursor:pointer;font-family:'Space Grotesk',sans-serif;transition:background .15s,transform .15s;letter-spacing:.4px}
+#back-btn:hover{background:rgba(255,255,255,.06);transform:translateX(-2px)}
+#back-btn svg{width:13px;height:13px;stroke:currentColor;fill:none;stroke-width:2}
+
+/* ── LEGEND ── */
+#legend{position:fixed;bottom:26px;right:24px;z-index:20;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px 16px;font-size:11px;min-width:170px;max-height:calc(100vh - 80px);overflow-y:auto}
+#legend h4{font-size:8.5px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);margin-bottom:8px;font-weight:600}
+.lg-section{margin-bottom:10px}.lg-title{font-size:8px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);opacity:.6;margin-bottom:4px}
+.li{display:flex;align-items:center;gap:6px;margin-bottom:3px;color:var(--muted)}.li-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.li-bridge{width:7px;height:3px;border-radius:2px;flex-shrink:0}
+
+/* ── POPUP ── */
+#popup{position:fixed;z-index:30;width:360px;background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:20px;backdrop-filter:blur(30px);box-shadow:0 20px 70px rgba(0,0,0,.75),0 0 0 1px rgba(255,255,255,.04);display:none;pointer-events:all;animation:pin .17s cubic-bezier(.34,1.5,.64,1)}
+@keyframes pin{from{opacity:0;transform:scale(.93) translateY(4px)}to{opacity:1;transform:scale(1) translateY(0)}}
+#popup-close{position:absolute;top:12px;right:12px;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.07);border:none;color:var(--muted);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;transition:background .15s}
+#popup-close:hover{background:rgba(255,255,255,.14);color:#fff}
+.ph{display:flex;gap:11px;align-items:flex-start;margin-bottom:13px}
+.ph-icon{width:38px;height:38px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.ph-title{font-size:17px;font-weight:700;line-height:1.1;color:#fff}
+.ph-sub{font-size:10px;color:var(--muted);margin-top:2px;letter-spacing:.3px;text-transform:uppercase}
+.price-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.09);border-radius:7px;padding:4px 9px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:500;margin-bottom:11px}
+.price-label{font-size:8px;font-weight:400;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;font-family:'Space Grotesk',sans-serif}
+.divider{height:1px;background:var(--border);margin:10px 0}
+.sec-label{font-size:8.5px;text-transform:uppercase;letter-spacing:1.2px;color:var(--muted);margin-bottom:6px;font-weight:600}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.tag{font-size:10px;padding:2px 7px;border-radius:14px;font-weight:600;letter-spacing:.3px}
+.rows{display:flex;flex-direction:column;gap:6px}
+.row{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;font-size:11.5px}
+.rk{color:var(--muted);font-size:10.5px;flex-shrink:0;padding-top:1px}.rv{color:var(--text);text-align:right;line-height:1.4}
+.note{font-size:10.5px;color:var(--muted);line-height:1.55;margin-top:10px;padding:8px 10px;background:rgba(255,255,255,.03);border-radius:7px;border-left:3px solid}
+.drill-hint{margin-top:10px;padding:7px 9px;border-radius:7px;font-size:10.5px;display:flex;align-items:center;gap:5px}
+
+/* svg */
+.node{cursor:pointer}.node:hover .main-circle{filter:brightness(1.35)}
+.node-label{font-family:'Space Grotesk',sans-serif;font-weight:600;font-size:10.5px;fill:var(--text);pointer-events:none;text-anchor:middle}
+.node-label.cat{font-size:12px;font-weight:700;fill:#fff}
+.link{stroke-opacity:.28;stroke-width:1.2}.link.strong{stroke-opacity:.55;stroke-width:1.8}
+.link.bridge-link{stroke-opacity:.7;stroke-width:2.5;stroke-dasharray:6 3}
+@keyframes pulse-ring{0%,100%{stroke-opacity:.12}50%{stroke-opacity:.38}}
+.pulse-ring{animation:pulse-ring 3s ease-in-out infinite}
+@keyframes dash-anim{to{stroke-dashoffset:-18}}
+.bridge-link{animation:dash-anim 1.2s linear infinite}
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="graph-wrap"><svg id="g"></svg></div>
+
+<div id="topbar">
+  <div class="logo-wrap">
+    <div class="logo-c">COSTER<em>.</em></div>
+    <div class="logo-x">×</div>
+    <div class="logo-t">TEKTELIC</div>
+    <span style="font-size:9px;color:var(--muted);margin-left:4px;letter-spacing:1px">ECOSYSTEM MAP</span>
+  </div>
+  <div id="breadcrumb">
+    <span class="bc-item active" id="bc-root" onclick="navigateTo(null)">⬡ Mappa Generale</span>
+  </div>
+  <div id="hint">Clicca su un hub/categoria · Trascina · Scroll zoom</div>
+</div>
+
+<button id="back-btn" onclick="navigateTo(null)">
+  <svg viewBox="0 0 24 24"><polyline points="15,18 9,12 15,6"/></svg>
+  Torna alla Mappa
+</button>
+
+<div id="legend">
+  <h4>Legenda</h4>
+  <div class="lg-section">
+    <div class="lg-title">COSTER</div>
+    <div class="li"><div class="li-dot" style="background:#f0c040"></div>Edge Device</div>
+    <div class="li"><div class="li-dot" style="background:#34d399"></div>BACnet</div>
+    <div class="li"><div class="li-dot" style="background:#fb923c"></div>Serie Y/Modbus</div>
+    <div class="li"><div class="li-dot" style="background:#c084fc"></div>Radio 868 MHz</div>
+    <div class="li"><div class="li-dot" style="background:#38bdf8"></div>Supervisione</div>
+    <div class="li"><div class="li-dot" style="background:#f472b6"></div>Espansione I/O</div>
+    <div class="li"><div class="li-dot" style="background:#94a3b8"></div>Protocolli</div>
+    <div class="li"><div class="li-dot" style="background:#4ade80"></div>Monitoring</div>
+  </div>
+  <div class="lg-section">
+    <div class="lg-title">TEKTELIC</div>
+    <div class="li"><div class="li-dot" style="background:#22d3ee"></div>Gateways KONA</div>
+    <div class="li"><div class="li-dot" style="background:#818cf8"></div>Sensori Smart City</div>
+    <div class="li"><div class="li-dot" style="background:#f97316"></div>Asset Tracker</div>
+    <div class="li"><div class="li-dot" style="background:#fb7185"></div>eHealth</div>
+    <div class="li"><div class="li-dot" style="background:#a3e635"></div>Agricoltura</div>
+    <div class="li"><div class="li-dot" style="background:#60a5fa"></div>Server & App</div>
+    <div class="li"><div class="li-dot" style="background:#fbbf24"></div>Safety</div>
+  </div>
+  <div class="lg-section">
+    <div class="lg-title">BRIDGE</div>
+    <div class="li"><div class="li-bridge" style="background:#e879f9"></div>LoRaWAN↔Modbus/BACnet</div>
+    <div class="li"><div class="li-bridge" style="background:#34d399"></div>API / BMS</div>
+    <div class="li"><div class="li-bridge" style="background:#f59e0b"></div>M-Bus / Radio</div>
+  </div>
+</div>
+
+<div id="popup">
+  <button id="popup-close">✕</button>
+  <div id="popup-body"></div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//   COLOUR RESOLVER
+// ══════════════════════════════════════════════════════════
+const COL = {
+  ehc:'#f0c040',bacnet:'#34d399',seriey:'#fb923c',radio:'#c084fc',
+  sup:'#38bdf8',esp:'#f472b6',proto:'#94a3b8',monitor:'#4ade80',
+  // TEKTELIC
+  tgw:'#22d3ee',tcity:'#818cf8',ttrack:'#f97316',thealth:'#fb7185',
+  tagri:'#a3e635',tsrv:'#60a5fa',tsafety:'#fbbf24',
+  // Hubs
+  coster:'#f0c040',tektelic:'#22d3ee',
+  // Bridges
+  blorawan:'#e879f9',bbms:'#34d399',bapi:'#f59e0b',
+  hub:'#e2e8ff'
+};
+const rc=k=>COL[k]||k;
+
+// ══════════════════════════════════════════════════════════
+//   STARS
+// ══════════════════════════════════════════════════════════
+(function(){
+  const cv=document.getElementById('canvas');
+  cv.width=innerWidth;cv.height=innerHeight;
+  const c=cv.getContext('2d');
+  for(let i=0;i<280;i++){
+    const x=Math.random()*cv.width,y=Math.random()*cv.height;
+    const r=Math.random()*1.1,a=.06+Math.random()*.4;
+    c.beginPath();c.arc(x,y,r,0,Math.PI*2);
+    c.fillStyle=`rgba(255,255,255,${a})`;c.fill();
+  }
+})();
+
+// ══════════════════════════════════════════════════════════
+//   GALAXY (LEVEL 0): TWO HUBS + BRIDGE NODES
+// ══════════════════════════════════════════════════════════
+const GALAXY={
+  nodes:[
+    // COSTER hub
+    {id:'hub_coster',label:'COSTER',type:'hub',r:44,col:'coster',icon:'🏗️',drillable:true,
+     info:{titolo:'Coster Group – Building Automation',sottotitolo:'Efficienza energetica per edifici',
+       note:'Piattaforma completa: regolazione HVAC-R, monitoring energetico, supervisione BMS.\nProtocolli: BACnet, Modbus, M-Bus, C-Bus, radio 868 MHz.'}},
+    // TEKTELIC hub
+    {id:'hub_tek',label:'TEKTELIC',type:'hub',r:44,col:'tektelic',icon:'📡',drillable:true,
+     info:{titolo:'TEKTELIC Communications – LPWAN IoT',sottotitolo:'End-to-end LoRaWAN® solutions',
+       note:'Leader globale IoT: Gateway LoRaWAN carrier-grade, sensori, network server e applicazioni.\nVerticals: Smart Cities, Industrial, Asset Tracking, Agriculture, eHealth.'}},
+    // COSTER categories
+    {id:'g_ehc',label:'Edge Device',type:'cat',r:27,col:'ehc',icon:'⚡',drillable:true,
+     info:{titolo:'Edge Device EHC/YHC/ZHC',sottotitolo:'Multiprotocollo BACnet/Modbus',note:'Nodi centrali che raccolgono variabili dai regolatori e le espongono verso BMS o sistemi terzi.'}},
+    {id:'g_bacnet',label:'BACnet',type:'cat',r:26,col:'bacnet',icon:'🔌',drillable:true,
+     info:{titolo:'Controllori BACnet',sottotitolo:'ASHRAE 135 su RS 485',note:'ZBC 862, ZRC 658 e gateway ZHC 602 per integrazione BMS terze parti.'}},
+    {id:'g_seriey',label:'Serie Y\nModbus',type:'cat',r:26,col:'seriey',icon:'🔥',drillable:true,
+     info:{titolo:'Serie Y – Modbus RTU/TCP',sottotitolo:'Regolazione HVAC-R programmabile',note:'YLC 880, GPC 642. Logica CosterCAD/CosterDiagram. Espandibili con moduli I/O.'}},
+    {id:'g_radio',label:'Radio\n868 MHz',type:'cat',r:26,col:'radio',icon:'📡',drillable:true,
+     info:{titolo:'Radio 868 MHz',sottotitolo:'CSW 868, BRG 868/868C',note:'Reti radio bidirezionali per sonde e attuatori senza cablaggio.'}},
+    {id:'g_sup',label:'Supervisione',type:'cat',r:25,col:'sup',icon:'🌐',drillable:true,
+     info:{titolo:'Supervisione & Connettività',sottotitolo:'Router, modem, licenze Webgarage',note:'RUT 302 (4G), MDM 232 (2G), licenze BMS da 100 a 100k punti.'}},
+    {id:'g_esp',label:'Espansione\nI/O',type:'cat',r:24,col:'esp',icon:'🧩',drillable:true,
+     info:{titolo:'Moduli Espansione I/O',sottotitolo:'EST 482, ESU 402, ESP 442',note:'Ingressi/uscite aggiuntivi per YLC 880 e ZBC 862 via Modbus RTU.'}},
+    {id:'g_proto',label:'Protocolli',type:'cat',r:24,col:'proto',icon:'⚙️',drillable:true,
+     info:{titolo:'Protocolli Seriali',sottotitolo:'RS485 · Baudrate · Parità',note:'Configurazione porte seriali: Modbus RTU, BACnet MS/TP, C-Bus, M-Bus.'}},
+    {id:'g_monitor',label:'Monitoring',type:'cat',r:24,col:'monitor',icon:'📊',drillable:true,
+     info:{titolo:'Monitoring Energetico',sottotitolo:'Contatori, analizzatori',note:'MFD, MHF/MHN, CMC. Protocolli M-Bus, Modbus, BACnet.'}},
+    // TEKTELIC categories
+    {id:'t_gw',label:'Gateway\nKONA',type:'cat',r:27,col:'tgw',icon:'📶',drillable:true,
+     info:{titolo:'KONA Gateway Family',sottotitolo:'Carrier-grade LoRaWAN gateways',note:'Mega, Macro, Enterprise, Micro, Photon, Strand Macro, Mobile. Supporto globale ISM bands.'}},
+    {id:'t_city',label:'Smart City\nSensori',type:'cat',r:26,col:'tcity',icon:'🏙️',drillable:true,
+     info:{titolo:'Smart City & Building Sensors',sottotitolo:'COMFORT, BREEZE, TUNDRA, MEMO…',note:'Sensori indoor per temperatura, umidità, CO₂, occupazione, consumi.'}},
+    {id:'t_track',label:'Asset\nTracker',type:'cat',r:26,col:'ttrack',icon:'📍',drillable:true,
+     info:{titolo:'Asset & People Trackers',sottotitolo:'ORCA, STORK, SPARROW, SEAL…',note:'GPS + BLE per tracciamento outdoor/indoor di persone e asset.'}},
+    {id:'t_health',label:'eHealth',type:'cat',r:24,col:'thealth',icon:'❤️',drillable:true,
+     info:{titolo:'eHealth Devices',sottotitolo:'eDoctor, eBeat',note:'Monitoraggio respiratorio, temperatura corporea, frequenza cardiaca, SPO₂.'}},
+    {id:'t_agri',label:'Agricoltura',type:'cat',r:24,col:'tagri',icon:'🌱',drillable:true,
+     info:{titolo:'Smart Agriculture',sottotitolo:'KIWI & CLOVER',note:'Sensori suolo (umidità, temperatura), ambientali e luce. IP67, 10 anni batteria.'}},
+    {id:'t_srv',label:'Server\n& App',type:'cat',r:25,col:'tsrv',icon:'☁️',drillable:true,
+     info:{titolo:'Server & Applications',sottotitolo:'KONA Core NS, OA&M, Geolocation, LOCUS',note:'Network Server LoRaWAN, gestione gateway, geolocalizzazione TDoA, tracking RTLS.'}},
+    {id:'t_safety',label:'Safety',type:'cat',r:23,col:'tsafety',icon:'🛡️',drillable:true,
+     info:{titolo:'Safety Devices',sottotitolo:'ROBIN, FINCH – Panic Button',note:'Pulsanti di panico indoor/outdoor BLE+LoRaWAN. Lone worker, senior care, mining.'}},
+    // BRIDGE NODES
+    {id:'br_lorawan',label:'LoRaWAN\n↔ BACnet/Modbus',type:'bridge',r:22,col:'blorawan',icon:'🔗',drillable:true,
+     info:{titolo:'Bridge: LoRaWAN ↔ BACnet / Modbus',sottotitolo:'TEKTELIC KONA GW → Coster EHC 602',
+       note:'I dati IoT raccolti dai sensori TEKTELIC via LoRaWAN vengono instradati dal KONA Gateway al Network Server e poi all\'EHC 602 via Modbus TCP o BACnet IP (Ethernet).\n\nFlusso: TEKTELIC Sensor → KONA GW → KONA Core NS → EHC 602 (Modbus TCP / BACnet IP)\nProtocollo: Modbus TCP port 502 · BACnet IP UDP 47808\nEHC 602 agisce da edge broker bidirezionale.',
+       protocolli:['LoRaWAN','Modbus TCP','BACnet IP','MQTT'],
+       porte:'Ethernet · UDP/TCP'}},
+    {id:'br_bms',label:'API / BMS\nIntegration',type:'bridge',r:20,col:'bbms',icon:'🔄',drillable:true,
+     info:{titolo:'Bridge: BMS Integration',sottotitolo:'Webgarage ↔ TEKTELIC App Server / LOCUS',
+       note:'Il BMS Webgarage di Coster e l\'Application Server TEKTELIC si integrano a livello applicativo tramite API REST/MQTT per dashboard unificata.\n\nFlusso: TEKTELIC App Server → API REST/MQTT → Coster Webgarage\nCoster KONA Core NS pubblica dati su MQTT → TEKTELIC Application Server sottoscrive\nAbilita: dashboard unificata, allarmi cross-system, storicizzazione comune.',
+       protocolli:['MQTT','REST API','TLS'],
+       porte:'HTTPS 443 · MQTT 1883/8883'}},
+    {id:'br_radio',label:'CSW 868\n↔ LoRaWAN',type:'bridge',r:20,col:'bapi',icon:'📡',drillable:true,
+     info:{titolo:'Bridge: Radio 868 ↔ LoRaWAN + M-Bus',sottotitolo:'CSW 868 · RS-485 · M-Bus',
+       note:'Il concentratore CSW 868 di Coster raccoglie sonde radio (THP 868, COP 868, ATR 868…) via 868 MHz e le espone al regolatore via RS-485.\nI contatori M-Bus (TEKTELIC o terzi) si collegano all\'EHC 602 tramite porta M-Bus dedicata.\n\nFlusso radio: Sonda 868 → CSW 868 → RS-485 → YLC 880 / EHC 602\nFlusso M-Bus: Contatore → M-Bus → EHC 602 → Webgarage\nFlusso LoRaWAN: Sensore TEKTELIC → KONA GW → NS → Coster EHC 602',
+       protocolli:['Radio 868 MHz','RS-485','M-Bus EN13757','LoRaWAN'],
+       porte:'RS-485 · M-Bus 2 fili'}},
+  ],
+  links:[
+    // Coster hub → categories
+    {s:'hub_coster',t:'g_ehc'},{s:'hub_coster',t:'g_bacnet'},{s:'hub_coster',t:'g_seriey'},
+    {s:'hub_coster',t:'g_radio'},{s:'hub_coster',t:'g_sup'},{s:'hub_coster',t:'g_esp'},
+    {s:'hub_coster',t:'g_proto'},{s:'hub_coster',t:'g_monitor'},
+    // TEKTELIC hub → categories
+    {s:'hub_tek',t:'t_gw'},{s:'hub_tek',t:'t_city'},{s:'hub_tek',t:'t_track'},
+    {s:'hub_tek',t:'t_health'},{s:'hub_tek',t:'t_agri'},{s:'hub_tek',t:'t_srv'},
+    {s:'hub_tek',t:'t_safety'},
+    // Bridge connections - cross-ecosystem
+    {s:'hub_coster',t:'br_lorawan',bridge:true},{s:'hub_tek',t:'br_lorawan',bridge:true},
+    {s:'g_ehc',t:'br_lorawan',bridge:true},{s:'t_gw',t:'br_lorawan',bridge:true},
+    {s:'hub_coster',t:'br_bms',bridge:true},{s:'hub_tek',t:'br_bms',bridge:true},
+    {s:'g_sup',t:'br_bms',bridge:true},{s:'t_srv',t:'br_bms',bridge:true},
+    {s:'g_radio',t:'br_radio',bridge:true},{s:'t_gw',t:'br_radio',bridge:true},
+    {s:'g_monitor',t:'br_radio',bridge:true},
+  ]
+};
+
+// ══════════════════════════════════════════════════════════
+//   COSTER SYSTEMS
+// ══════════════════════════════════════════════════════════
+const SYSTEMS = {
+  hub_coster:{
+    label:'COSTER – Building Automation', col:'coster', isCoster:true,
+    nodes:[
+      {id:'cs_sun',label:'COSTER\nBA 2025',type:'sun',r:36,col:'coster',icon:'🏗️',
+       info:{titolo:'Coster – Building Automation',sottotitolo:'Efficienza energetica per edifici',
+         note:'Piattaforma completa: regolazione HVAC-R, monitoring energetico, supervisione BMS.\nProtocolli: BACnet, Modbus, M-Bus, C-Bus, Radio 868 MHz.'}},
+      {id:'cs_ehc',label:'EHC 602',type:'device',r:20,col:'ehc',icon:'⚡',
+       info:{titolo:'EHC 602',sottotitolo:'Edge Device Multiprotocollo',prezzo:'Su richiesta',
+         protocolli:['BACnet MS/TP','BACnet IP','Modbus RTU','Modbus TCP','M-Bus','C-Bus'],
+         porte:'2× RS485 · 1× M-Bus · 1× C-Bus · 2× Ethernet',alimentazione:'12Vdc/24Vac',
+         note:'6 DIN. Wi-Fi. Webgarage embedded ≤2000 pt. Gateway BACnet IP↔Modbus RTU.'}},
+      {id:'cs_yhc',label:'YHC 700',type:'device',r:17,col:'ehc',icon:'⚡',
+       info:{titolo:'YHC 700',sottotitolo:'Network-Manager Modbus/TCP',prezzo:'Su richiesta',
+         protocolli:['Modbus TCP','Modbus RTU'],porte:'2× RS485 · 1× RS232 · 1× Ethernet',alimentazione:'12Vdc',
+         note:'6 DIN. SIM card supportata. Per YLC 880.'}},
+      {id:'cs_zbc',label:'ZBC 862',type:'device',r:19,col:'bacnet',icon:'🔌',
+       info:{titolo:'ZBC 862',sottotitolo:'Regolatore BACnet MS/TP',prezzo:'Su richiesta',
+         protocolli:['BACnet MS/TP'],porte:'3× RS485',io:'8UI · 2AO · 6DO',alimentazione:'12Vdc/24Vac',
+         note:'8 DIN. CosterCAD/Diagram. Config. DSP120 o USB.'}},
+      {id:'cs_ylc',label:'YLC 880',type:'device',r:19,col:'seriey',icon:'🔥',
+       info:{titolo:'YLC 880',sottotitolo:'Regolatore Multi-Configurabile',prezzo:'Su richiesta',
+         protocolli:['Modbus RTU','Modbus TCP'],porte:'2× RS485 Modbus',io:'Multi + espansori',
+         note:'Riscaldamento/raffrescamento/ACS. 32 misure, 32 scheduler. Espandibile EST/ESU/ESP.'}},
+      {id:'cs_csw',label:'CSW 868',type:'device',r:18,col:'radio',icon:'📡',
+       info:{titolo:'CSW 868',sottotitolo:'Concentratore Sonde Radio 868',prezzo:'€ 470,00',
+         protocolli:['Radio 868 MHz'],porte:'1× RS485',io:'≤40 device radio',alimentazione:'12Vdc',
+         note:'THP/PCP/COP/STT/STU 868, ATR 868. Abbinabile a YLC 880, ZBC 862, EHC 602.'}},
+      {id:'cs_rut',label:'RUT 302',type:'device',r:16,col:'sup',icon:'📶',
+       info:{titolo:'RUT 302',sottotitolo:'Router 4G',prezzo:'€ 530,00',
+         protocolli:['4G LTE','Ethernet','RS485','C-Bus'],alimentazione:'12-24Vdc/Vac',
+         note:'3 DIN. Config via webserver. Comunicazione C-Bus + Modbus simultanea.'}},
+      {id:'cs_webg',label:'Webgarage\nBMS',type:'software',r:17,col:'sup',icon:'🔑',
+       info:{titolo:'Webgarage – Licenze CWS',sottotitolo:'BMS acquisto una tantum',prezzo:'€970–€15.120',
+         note:'100pt €970 · 200pt €1.375 · 500pt €2.750 · 1K €3.785 · 2K €5.615 · 5K €10.315 · 10K €15.120'}},
+      {id:'cs_est',label:'EST 482',type:'device',r:15,col:'esp',icon:'🧩',
+       info:{titolo:'EST 482',sottotitolo:'8 Ingressi Universali',prezzo:'Su richiesta',
+         protocolli:['Modbus RTU'],porte:'1× RS485',io:'8 UI (digitali/analogici/sonde)',
+         note:'PT1000, NTC 10K/1K, Ni1000, Potenziometro.'}},
+      {id:'cs_proto',label:'RS485\nModbus',type:'proto',r:14,col:'proto',icon:'⚙️',
+       info:{titolo:'RS 485 – Modbus RTU',sottotitolo:'Parametri porte seriali',
+         note:'Default: 19200 / N / 8 / 1\nBaudrate: 1200–115200 bps\nParità: N/E/O · Stop bit: 1–2\nBACnet MS/TP: 9600–76800 bps'}},
+      {id:'cs_mfd',label:'MFD 448',type:'device',r:14,col:'monitor',icon:'⚡',
+       info:{titolo:'MFD 448 – Analizzatore Rete',sottotitolo:'Modbus RS485',prezzo:'€ 610,00',
+         note:'Mono/trifase. TA 1-5A. MFD 548 MID-cert €640. MFD 438 BACnet €460.'}},
+    ],
+    links:[
+      {s:'cs_sun',t:'cs_ehc',str:true},{s:'cs_sun',t:'cs_yhc'},{s:'cs_sun',t:'cs_zbc',str:true},
+      {s:'cs_sun',t:'cs_ylc',str:true},{s:'cs_sun',t:'cs_csw'},{s:'cs_sun',t:'cs_rut'},
+      {s:'cs_sun',t:'cs_webg'},{s:'cs_sun',t:'cs_est'},{s:'cs_sun',t:'cs_proto'},{s:'cs_sun',t:'cs_mfd'},
+      {s:'cs_ehc',t:'cs_webg'},{s:'cs_ehc',t:'cs_zbc'},{s:'cs_ehc',t:'cs_csw'},
+      {s:'cs_ylc',t:'cs_est'},{s:'cs_ylc',t:'cs_csw'},
+    ]
+  },
+
+  // ── TEKTELIC HUB ──────────────────────────────────────
+  hub_tek:{
+    label:'TEKTELIC – LPWAN IoT', col:'tektelic', isTek:true,
+    nodes:[
+      {id:'tk_sun',label:'TEKTELIC\nLoRaWAN®',type:'sun',r:36,col:'tektelic',icon:'📡',
+       info:{titolo:'TEKTELIC – End-to-End IoT',sottotitolo:'Carrier-grade LPWAN ecosystem',
+         note:'Gateway LoRaWAN carrier-grade + sensori + Network Server + applicazioni.\nVerticals: Smart Cities, Industrial, Oil&Gas, Agriculture, eHealth, Asset Tracking.'}},
+      {id:'tk_mega',label:'KONA Mega',type:'device',r:20,col:'tgw',icon:'📶',
+       info:{titolo:'KONA Mega IoT Gateway',sottotitolo:'72Rx/8Tx · Full Duplex · IP67',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN','BACnet IP (via NS)','GPS TDoA'],
+         porte:'Ethernet/Optical · 3G/4G · GPS',
+         note:'Cavity Duplexer/Filter. Rx Diversity. 2×30dBm. GPS Holdover 24h. 12M msg/giorno. -40/+60°C.'}},
+      {id:'tk_macro',label:'KONA Macro',type:'device',r:17,col:'tgw',icon:'📶',
+       info:{titolo:'KONA Macro IoT Gateway',sottotitolo:'16Rx/2Tx · Outdoor · IP67',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],porte:'Ethernet · 3G/4G',
+         note:'Cavity Duplexer/Filter. 27dBm. Geolocation opzionale. Passivo/no fan. Pole/wall/tower mount.'}},
+      {id:'tk_ent',label:'KONA\nEnterprise',type:'device',r:16,col:'tgw',icon:'📶',
+       info:{titolo:'KONA Enterprise Gateway',sottotitolo:'8Rx/1Tx · Compact · IP67',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],porte:'Ethernet · 3G/4G · PoE',
+         note:'Antenne LoRa/3G/GPS integrate. Plug & play. DIN rail/pole/wall mount.'}},
+      {id:'tk_micro',label:'KONA Micro',type:'device',r:15,col:'tgw',icon:'📶',
+       info:{titolo:'KONA Micro IoT Gateway',sottotitolo:'8Rx/1Tx · Indoor · 4-6h Battery',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],porte:'Ethernet · 3G/4G',
+         note:'Battery backup 4-6h. Ideale per in-building. Desktop o wall mount. 27dBm.'}},
+      {id:'tk_photon',label:'KONA Photon',type:'device',r:15,col:'tgw',icon:'☀️',
+       info:{titolo:'KONA Photon Gateway',sottotitolo:'8Rx/1Tx · Solar · 50/100h Battery',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],porte:'3G/4G · GPS',
+         note:'Zero footprint solare. IP67. -30/+65°C. Per aree remote: oil&gas, mining, agricoltura.'}},
+      {id:'tk_comfort',label:'COMFORT\nVIVID',type:'device',r:17,col:'tcity',icon:'🌡️',
+       info:{titolo:'COMFORT & VIVID Smart Room Sensor',sottotitolo:'Temperatura, umidità, luce, motion',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],
+         note:'Configurabile OTA. Rileva: T, UR, luce, motion, shock, leak, apertura porte. Battery status.'}},
+      {id:'tk_breeze',label:'BREEZE',type:'device',r:16,col:'tcity',icon:'💨',
+       info:{titolo:'BREEZE & BREEZE-V',sottotitolo:'CO₂ + T + UR + pressione + luce',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],
+         note:'BREEZE-V aggiunge PIR. Pairable con E-Ink display. App BREEZE su iOS/Android.'}},
+      {id:'tk_tundra',label:'TUNDRA',type:'device',r:15,col:'tcity',icon:'🧊',
+       info:{titolo:'TUNDRA Sensor',sottotitolo:'Cold chain · -40/+85°C · 15yr battery',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],
+         note:'Ideale per: farmaceutici, vaccini, food service. 125 giorni/3000 entries stored data.'}},
+      {id:'tk_orca',label:'ORCA',type:'device',r:17,col:'ttrack',icon:'📍',
+       info:{titolo:'ORCA – Industrial GPS Asset Tracker',sottotitolo:'GPS + BLE · 5yr · IP67',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN','BLE (opt.)','GPS'],
+         note:'D Cell batteries. Accelerometro (event-based). -40/+85°C. Indoor+outdoor tracking.'}},
+      {id:'tk_seal',label:'SEAL',type:'device',r:16,col:'ttrack',icon:'🦺',
+       info:{titolo:'SEAL & SEAL Ex – Wearable GPS Tracker',sottotitolo:'15 mesi · GPS + BLE · IP67',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN','BLE','GPS'],
+         note:'Fall & impact detection. Audio+visual alarms. Geofencing. Opzionale harness detection. SEAL Ex: ATEX.'}},
+      {id:'tk_sparrow',label:'SPARROW',type:'device',r:15,col:'ttrack',icon:'📍',
+       info:{titolo:'SPARROW – Enterprise Asset Tracker',sottotitolo:'5yr tracker / 16mo beacon · BLE+LoRaWAN',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN','BLE'],
+         note:'Ideale per ospedali RF difficili. Analisi pattern movimento. Optional T+UR sensor.'}},
+      {id:'tk_chickadee',label:'CHICKADEE',type:'device',r:14,col:'ttrack',icon:'🏷️',
+       info:{titolo:'CHICKADEE – Wearable Badge Tracker',sottotitolo:'GPS + BLE + Wi-Fi indoor · 6mo recharge',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN','BLE','Wi-Fi sniffing','GNSS'],
+         note:'LR1110. Passive RFID. Indoor: BLE+WiFi. Outdoor: GPS+GNSS. Ideale critical infrastructure.'}},
+      {id:'tk_edoctor',label:'eDoctor',type:'device',r:15,col:'thealth',icon:'🫁',
+       info:{titolo:'eDoctor Respiratory Sensor',sottotitolo:'T corporea, respiro, battito, SPO₂',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],
+         note:'3 mesi batteria. Strap regolabile lavabile. Autocal. per chest expansion. App desktop integrata.'}},
+      {id:'tk_ebeat',label:'eBeat',type:'device',r:14,col:'thealth',icon:'💓',
+       info:{titolo:'eBeat Arm Band',sottotitolo:'T corporea · FC · SPO₂ · 4 mesi',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],
+         note:'Monitoraggio continuo pazienti e anziani. Allarme immediato caregiver.'}},
+      {id:'tk_kiwi',label:'KIWI\nCLOVER',type:'device',r:15,col:'tagri',icon:'🌱',
+       info:{titolo:'KIWI & CLOVER – Agriculture Sensors',sottotitolo:'Suolo, umidità, luce · IP67 · 10yr',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN'],
+         note:'CLOVER: montaggio a suolo. KIWI: palo/recinzione/vite. C Cell LTC battery. Tutti ISM.'}},
+      {id:'tk_ns',label:'KONA Core\nNetwork Server',type:'device',r:17,col:'tsrv',icon:'☁️',
+       info:{titolo:'KONA Core Network Server',sottotitolo:'LoRaWAN NS carrier-grade',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN 1.0.x','LoRaWAN 1.1','MQTT TLS'],
+         porte:'HTTPS · MQTT · UDP Packet Forwarder',
+         note:'Carrier Grade >5 nines. FDD+TDD. Sub-customers. Geolocation server. TEKTELIC+3rd party GW.'}},
+      {id:'tk_oam',label:'OA&M\nServer',type:'device',r:14,col:'tsrv',icon:'🛠️',
+       info:{titolo:'KONA Element OA&M Server',sottotitolo:'Gestione e monitoring gateway',prezzo:'Su richiesta',
+         note:'Config, allarmi, performance, SW management, troubleshooting per tutta la rete GW.'}},
+      {id:'tk_locus',label:'LOCUS\nRTLS',type:'device',r:14,col:'tsrv',icon:'🗺️',
+       info:{titolo:'TEKTELIC LOCUS – RTLS',sottotitolo:'Real-time location services IoT',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN','BLE','GPS'],
+         note:'Floor plan/map. Multi-campus/building/floor. Geofencing & alerts. SAP integration.'}},
+      {id:'tk_robin',label:'ROBIN',type:'device',r:14,col:'tsafety',icon:'🆘',
+       info:{titolo:'ROBIN – Outdoor Panic Button',sottotitolo:'15yr · BLE + LoRaWAN · belt clip',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN','BLE'],
+         note:'SOS con posizione. Lone worker, oil&gas, mining, senior care. Outdoor IP67.'}},
+      {id:'tk_finch',label:'FINCH',type:'device',r:13,col:'tsafety',icon:'🆘',
+       info:{titolo:'FINCH – Indoor Panic Button',sottotitolo:'5yr · BLE + LoRaWAN',prezzo:'Su richiesta',
+         protocolli:['LoRaWAN','BLE'],
+         note:'Indoor. Lone worker, senior care, hospitality. Belt clip. Small form factor.'}},
+    ],
+    links:[
+      {s:'tk_sun',t:'tk_mega',str:true},{s:'tk_sun',t:'tk_macro'},{s:'tk_sun',t:'tk_ent'},
+      {s:'tk_sun',t:'tk_micro'},{s:'tk_sun',t:'tk_photon'},
+      {s:'tk_sun',t:'tk_comfort',str:true},{s:'tk_sun',t:'tk_breeze'},{s:'tk_sun',t:'tk_tundra'},
+      {s:'tk_sun',t:'tk_orca',str:true},{s:'tk_sun',t:'tk_seal'},{s:'tk_sun',t:'tk_sparrow'},
+      {s:'tk_sun',t:'tk_chickadee'},
+      {s:'tk_sun',t:'tk_edoctor'},{s:'tk_sun',t:'tk_ebeat'},
+      {s:'tk_sun',t:'tk_kiwi'},
+      {s:'tk_sun',t:'tk_ns',str:true},{s:'tk_sun',t:'tk_oam'},{s:'tk_sun',t:'tk_locus'},
+      {s:'tk_sun',t:'tk_robin'},{s:'tk_sun',t:'tk_finch'},
+      {s:'tk_mega',t:'tk_ns'},{s:'tk_macro',t:'tk_ns'},
+      {s:'tk_ns',t:'tk_locus'},{s:'tk_ns',t:'tk_oam'},
+      {s:'tk_comfort',t:'tk_mega'},{s:'tk_orca',t:'tk_mega'},{s:'tk_breeze',t:'tk_mega'},
+    ]
+  },
+
+  // ── BRIDGE SYSTEMS ─────────────────────────────────────
+  br_lorawan:{
+    label:'Bridge: LoRaWAN ↔ BACnet/Modbus', col:'blorawan',
+    nodes:[
+      {id:'bl_sun',label:'LoRaWAN\n↔ BACnet/Modbus',type:'sun',r:32,col:'blorawan',icon:'🔗',
+       info:{titolo:'Bridge LoRaWAN ↔ BACnet/Modbus',sottotitolo:'TEKTELIC → Coster EHC 602',
+         note:'Punto di integrazione principale. I dati IoT LoRaWAN di TEKTELIC raggiungono l\'infrastruttura Coster tramite EHC 602 che funge da broker multiprotocollo.'}},
+      {id:'bl_kona_gw',label:'KONA\nGateway',type:'device',r:18,col:'tgw',icon:'📶',
+       info:{titolo:'KONA Gateway (Mega/Macro/Enterprise)',sottotitolo:'Riceve dati LoRaWAN dai sensori',
+         protocolli:['LoRaWAN'],porte:'Ethernet · 3G/4G',
+         note:'Raccoglie i pacchetti uplink LoRaWAN e li invia al Network Server via IP.'}},
+      {id:'bl_ns',label:'KONA Core\nNetwork Server',type:'device',r:16,col:'tsrv',icon:'☁️',
+       info:{titolo:'KONA Core Network Server',sottotitolo:'Smista e pubblica dati su MQTT',
+         protocolli:['LoRaWAN NS','MQTT TLS'],
+         note:'Decodifica payload LoRaWAN e pubblica su topic MQTT. Supporta data converters custom.'}},
+      {id:'bl_ehc',label:'EHC 602',type:'device',r:18,col:'ehc',icon:'⚡',
+       info:{titolo:'EHC 602 – Edge Device Coster',sottotitolo:'Broker Modbus TCP / BACnet IP',
+         protocolli:['Modbus TCP','BACnet IP','MQTT (via middleware)'],
+         porte:'2× Ethernet · 2× RS485',
+         note:'L\'EHC 602 sottoscrive i dati MQTT dal NS TEKTELIC (via middleware) o riceve poll Modbus TCP. Espone le variabili a Webgarage e ai regolatori YLC/ZBC.'}},
+      {id:'bl_middleware',label:'Middleware\nMQTT→Modbus',type:'proto',r:14,col:'blorawan',icon:'⚙️',
+       info:{titolo:'Middleware di Integrazione',sottotitolo:'MQTT → Modbus TCP / BACnet IP',
+         note:'Software (Node-RED, Python script o TEKTELIC App Server) che traduce i messaggi MQTT del NS TEKTELIC in register Modbus o oggetti BACnet leggibili da EHC 602.\n\nAlternativa: EHC 602 come client MQTT nativo (via firmware aggiornato).'}},
+      {id:'bl_webg',label:'Webgarage\nBMS',type:'software',r:14,col:'sup',icon:'🔑',
+       info:{titolo:'Webgarage BMS – Dashboard Unificata',sottotitolo:'Visualizzazione dati Coster + TEKTELIC',
+         note:'Attraverso EHC 602, le variabili dei sensori TEKTELIC (T, UR, CO₂, contatori) compaiono in Webgarage accanto alle variabili degli impianti Coster.'}},
+      {id:'bl_sensor',label:'TEKTELIC\nSensore',type:'sensor',r:13,col:'tcity',icon:'🌡️',
+       info:{titolo:'TEKTELIC Sensors (es. BREEZE, COMFORT)',sottotitolo:'Dati ambientali via LoRaWAN',
+         protocolli:['LoRaWAN'],
+         note:'BREEZE: CO₂/T/UR/luce/pressione\nCOMFORT: T/UR/motion/leak/shock\nTUNDRA: T cold chain\nI payload vengono decodificati dal NS e resi disponibili via MQTT.'}},
+      {id:'bl_proto',label:'Protocolli\nBridge',type:'proto',r:13,col:'proto',icon:'⚙️',
+       info:{titolo:'Stack Protocolli del Bridge',sottotitolo:'Dal sensore al BMS',
+         note:'Layer 1 (RF): LoRaWAN Chirp Spread Spectrum\nLayer 2 (MAC): LoRaWAN 1.0.x/1.1\nLayer 3 (Transport): MQTT/TLS (NS→Middleware)\nLayer 4 (BAS): Modbus TCP port 502 o BACnet IP UDP 47808\nLayer 5 (BMS): Webgarage HTTP/HTTPS'}},
+    ],
+    links:[
+      {s:'bl_sun',t:'bl_kona_gw',str:true},{s:'bl_sun',t:'bl_ns',str:true},
+      {s:'bl_sun',t:'bl_ehc',str:true},{s:'bl_sun',t:'bl_middleware'},
+      {s:'bl_kona_gw',t:'bl_ns',str:true},{s:'bl_ns',t:'bl_middleware',str:true},
+      {s:'bl_middleware',t:'bl_ehc',str:true},{s:'bl_ehc',t:'bl_webg',str:true},
+      {s:'bl_sensor',t:'bl_kona_gw',str:true},{s:'bl_ns',t:'bl_proto'},{s:'bl_middleware',t:'bl_proto'},
+    ]
+  },
+
+  br_bms:{
+    label:'Bridge: API / BMS Integration', col:'bbms',
+    nodes:[
+      {id:'bm_sun',label:'BMS\nIntegration',type:'sun',r:30,col:'bbms',icon:'🔄',
+       info:{titolo:'Bridge BMS – Integrazione Applicativa',sottotitolo:'Webgarage ↔ TEKTELIC App Server',
+         note:'Integrazione a livello applicativo/API per dashboard e gestione allarmi unificata tra i due ecosistemi.'}},
+      {id:'bm_webg',label:'Webgarage\nCoster',type:'software',r:17,col:'sup',icon:'🔑',
+       info:{titolo:'Webgarage BMS',sottotitolo:'BMS Coster con API REST/MQTT',
+         note:'Espone API per terze parti. Pubblica variabili di impianto su topic MQTT.\nLicenze: 100–100K punti. Rinnovo annuale MAINT.'}},
+      {id:'bm_appserver',label:'TEKTELIC\nApp Server',type:'software',r:17,col:'tsrv',icon:'☁️',
+       info:{titolo:'TEKTELIC Application Server',sottotitolo:'Dashboard IoT multitenant',
+         protocolli:['MQTT','REST API','TLS'],
+         note:'Visualizza e organizza dati da migliaia di device. Custom widgets, rule engine, plugin.\nHorizontally scalable, open-source tech stack.'}},
+      {id:'bm_locus',label:'TEKTELIC\nLOCUS',type:'software',r:14,col:'tsrv',icon:'🗺️',
+       info:{titolo:'TEKTELIC LOCUS – RTLS',sottotitolo:'Real-time location services',
+         note:'Floor plan loading, geofencing, device battery status, SAP integration.\nDati di posizione possono confluire in Webgarage.'}},
+      {id:'bm_api',label:'API REST\n+ MQTT',type:'proto',r:14,col:'bbms',icon:'⚙️',
+       info:{titolo:'Stack API di Integrazione',sottotitolo:'REST · MQTT · TLS',
+         note:'Webgarage pubblica su MQTT → TEKTELIC App Server sottoscrive\nTEKTELIC NS pubblica → EHC 602 / Webgarage ricevono\nEndpoint REST per: device list, last values, alarms, history export\nAutenticazione: OAuth2 / API Key / TLS Client Cert'}},
+      {id:'bm_ns',label:'KONA Core\nNetwork Server',type:'device',r:15,col:'tsrv',icon:'☁️',
+       info:{titolo:'KONA Core NS',sottotitolo:'Pubblica dati sensori su MQTT',
+         note:'Il NS TEKTELIC è il data broker centrale. Supporta TEKTELIC MQTT API e protocollo TLS. Compatibile con Semtech UDP Packet Forwarder.'}},
+      {id:'bm_tempo',label:'TEMPO\nRoom Booking',type:'device',r:13,col:'tcity',icon:'📅',
+       info:{titolo:'TEKTELIC TEMPO – Meeting Room Booking',sottotitolo:'Integrato con Outlook e Google Cal.',prezzo:'Su richiesta',
+         note:'12mo battery o PoE. Analytics utilizzo sale. HVAC optimization. Dati confluiscono in Webgarage via App Server API.'}},
+    ],
+    links:[
+      {s:'bm_sun',t:'bm_webg',str:true},{s:'bm_sun',t:'bm_appserver',str:true},
+      {s:'bm_sun',t:'bm_ns'},{s:'bm_sun',t:'bm_api'},
+      {s:'bm_ns',t:'bm_appserver',str:true},{s:'bm_appserver',t:'bm_api'},
+      {s:'bm_webg',t:'bm_api'},{s:'bm_appserver',t:'bm_locus'},
+      {s:'bm_appserver',t:'bm_tempo'},
+    ]
+  },
+
+  br_radio:{
+    label:'Bridge: CSW 868 ↔ LoRaWAN + M-Bus', col:'bapi',
+    nodes:[
+      {id:'br_sun',label:'Radio / M-Bus\nBridge',type:'sun',r:30,col:'bapi',icon:'📡',
+       info:{titolo:'Bridge: Radio 868 MHz + M-Bus',sottotitolo:'CSW 868 · RS-485 · M-Bus · LoRaWAN',
+         note:'Punto di convergenza dei dati di campo. Il CSW 868 raccoglie sonde radio proprietarie Coster; M-Bus integra contatori di energia; LoRaWAN porta i sensori TEKTELIC.'}},
+      {id:'br_csw',label:'CSW 868\nConcentratore',type:'device',r:19,col:'radio',icon:'📡',
+       info:{titolo:'CSW 868 – Concentratore Sonde Radio',sottotitolo:'≤40 device · RS-485 output',prezzo:'€ 470,00',
+         protocolli:['Radio 868 MHz proprietary'],porte:'1× RS485 → Master',
+         note:'Raccoglie THP/PCP/COP/STT/STU 868H, ATR 868. Output RS-485 verso YLC 880, ZBC 862, EHC 602, GPC 642.'}},
+      {id:'br_sonde',label:'Sonde Radio\nCoster 868',type:'sensor',r:14,col:'radio',icon:'🌡️',
+       info:{titolo:'Sonde Radio 868 MHz (Coster)',sottotitolo:'THP, COP, STT, ATR 868…',
+         note:'THP 868: T+UR+pressione\nCOP 868: CO₂ (€580)\nSTT 868H: temperatura\nSTU 868H: umidità\nATR 868: attuatore valvola (€180)\nPCP 868: contaimpulsi (€180)'}},
+      {id:'br_mbus',label:'M-Bus\nContatori',type:'device',r:14,col:'monitor',icon:'⚡',
+       info:{titolo:'Contatori M-Bus (EN 13757)',sottotitolo:'Energia termica, elettrica, idrica',
+         note:'MHF (Coster, €342+): calore con M-Bus\nMFD 448 (Coster, €610): elettrico Modbus\nContatori terzi compatibili EN 13757-2\nEHC 602 supporta 1 porta M-Bus diretta (≤5 device)'}},
+      {id:'br_cmc',label:'CMC 422/428\nConverter',type:'device',r:13,col:'monitor',icon:'🔄',
+       info:{titolo:'CMC 422/428 – Convertitore M-Bus',sottotitolo:'M-Bus → Modbus/C-Bus',prezzo:'€ 480,00',
+         note:'CMC 422: 12-24V, M-Bus→Wirebus/C-Bus\nCMC 428: 230Vac, M-Bus→Modbus\n≤5 device M-Bus. Abbinabile a MWM 000 (Wireless M-Bus, €540).'}},
+      {id:'br_ehc2',label:'EHC 602\nEdge',type:'device',r:17,col:'ehc',icon:'⚡',
+       info:{titolo:'EHC 602 – Hub Raccolta Dati',sottotitolo:'RS-485 + M-Bus + Ethernet',
+         note:'L\'EHC 602 è il collettore centrale:\n• RS-485 ← CSW 868 (sonde 868)\n• M-Bus diretta ← contatori calore/gas\n• Ethernet ← KONA GW (dati LoRaWAN via Modbus TCP)\nTutti i dati confluiscono in Webgarage (2000 punti embedded).'}},
+      {id:'br_tek_sensor',label:'Sensori\nTEKTELIC',type:'sensor',r:14,col:'tcity',icon:'🌡️',
+       info:{titolo:'Sensori TEKTELIC via LoRaWAN',sottotitolo:'COMFORT, BREEZE, TUNDRA…',
+         note:'I sensori TEKTELIC trasmettono via LoRaWAN al KONA Gateway. Dopo la traduzione nel bridge LoRaWAN↔Modbus, i loro dati diventano register Modbus leggibili da EHC 602, esattamente come le sonde radio Coster.'}},
+      {id:'br_rs485',label:'RS-485\nBus',type:'proto',r:12,col:'proto',icon:'⚙️',
+       info:{titolo:'RS-485 – Backbone Cablato',sottotitolo:'Tutte le comunicazioni seriali',
+         note:'CSW 868 → YLC 880 / EHC 602: Modbus RTU 19200/N/8/1\nEST 482/ESU 402/ESP 442 → YLC 880: Modbus RTU\nMax 150 pt fisici per regolatore (Coster recommendation)\nTerminazione 120Ω ai capi linea'}},
+    ],
+    links:[
+      {s:'br_sun',t:'br_csw',str:true},{s:'br_sun',t:'br_mbus'},{s:'br_sun',t:'br_ehc2',str:true},
+      {s:'br_csw',t:'br_sonde'},{s:'br_csw',t:'br_ehc2',str:true},
+      {s:'br_mbus',t:'br_cmc'},{s:'br_cmc',t:'br_ehc2'},{s:'br_mbus',t:'br_ehc2'},
+      {s:'br_tek_sensor',t:'br_ehc2'},{s:'br_ehc2',t:'br_rs485'},
+    ]
+  },
+
+  // Coster sub-categories (abbreviated)
+  g_ehc:{label:'Edge Device',col:'ehc',nodes:[
+    {id:'e_sun',label:'Edge Device',type:'sun',r:32,col:'ehc',icon:'⚡',info:{titolo:'Edge Device Overview',sottotitolo:'EHC 602 · YHC 700 · ZHC 602',note:'Nodi centrali multiprotocollo. Raccolgono variabili e le espongono verso BMS o sistemi terzi.\nEHC 602: BACnet/Modbus/M-Bus/C-Bus/WiFi. Max 2000 pt Webgarage embedded.'}},
+    {id:'e_ehc',label:'EHC 602',type:'device',r:20,col:'ehc',icon:'⚡',info:{titolo:'EHC 602',sottotitolo:'Edge Device multiprotocollo',prezzo:'Su richiesta',protocolli:['BACnet MS/TP','BACnet IP','Modbus RTU','Modbus TCP','M-Bus','C-Bus'],porte:'2×RS485·1×M-Bus·1×C-Bus·2×Ethernet',alimentazione:'12Vdc/24Vac',note:'6 DIN. Wi-Fi. Gateway BACnet IP↔Modbus RTU. 2000 pt Webgarage.'}},
+    {id:'e_yhc',label:'YHC 700',type:'device',r:17,col:'ehc',icon:'⚡',info:{titolo:'YHC 700',sottotitolo:'Network-Manager Modbus/TCP',prezzo:'Su richiesta',protocolli:['Modbus TCP','Modbus RTU'],porte:'2×RS485·1×RS232·1×Ethernet',alimentazione:'12Vdc',note:'6 DIN. SIM card. Per YLC 880.'}},
+    {id:'e_zhc',label:'ZHC 602',type:'device',r:17,col:'bacnet',icon:'🔌',info:{titolo:'ZHC 602',sottotitolo:'Gateway BACnet MS/TP→IP',prezzo:'Su richiesta',protocolli:['BACnet MS/TP','BACnet IP'],porte:'2×RS485·1×Ethernet',alimentazione:'12Vdc',note:'6 DIN. Max 600 pt BACnet/linea.'}},
+    {id:'e_webg',label:'Webgarage',type:'software',r:15,col:'sup',icon:'🔑',info:{titolo:'Webgarage BMS',sottotitolo:'Licenze CWS',prezzo:'€970–€15.120',note:'100pt €970 · 200pt €1.375 · 500pt €2.750 · 1K €3.785 · 2K €5.615'}},
+  ],links:[{s:'e_sun',t:'e_ehc',str:true},{s:'e_sun',t:'e_yhc'},{s:'e_sun',t:'e_zhc'},{s:'e_ehc',t:'e_webg'},{s:'e_ehc',t:'e_zhc'}]},
+
+  g_bacnet:{label:'Controllori BACnet',col:'bacnet',nodes:[
+    {id:'b_sun',label:'BACnet',type:'sun',r:30,col:'bacnet',icon:'🔌',info:{titolo:'BACnet ASHRAE 135',sottotitolo:'MS/TP su RS485 e IP su Ethernet',note:'Standard aperto. Interoperabilità multi-vendor. Coster: ZBC 862, ZRC 658, ZHC 602, MFD 438.'}},
+    {id:'b_zbc',label:'ZBC 862',type:'device',r:20,col:'bacnet',icon:'🔌',info:{titolo:'ZBC 862',sottotitolo:'Regolatore BACnet MS/TP',prezzo:'Su richiesta',protocolli:['BACnet MS/TP'],porte:'3×RS485',io:'8UI·2AO·6DO',alimentazione:'12Vdc/24Vac',note:'CosterCAD. Config DSP 120 (€607) o USB (€160).'}},
+    {id:'b_zrc',label:'ZRC 658',type:'device',r:17,col:'bacnet',icon:'🔌',info:{titolo:'ZRC 658',sottotitolo:'Room Controller BACnet (giu 2025)',prezzo:'Su richiesta',protocolli:['BACnet MS/TP'],io:'3UI·3AO·5DO',alimentazione:'230Vac',note:'6 DIN. CosterCAD. Abbinabile PRU 002 display.'}},
+    {id:'b_mfd',label:'MFD 438',type:'device',r:15,col:'monitor',icon:'📊',info:{titolo:'MFD 438 – Analizzatore BACnet',sottotitolo:'Unico analizzatore Coster con BACnet nativo',prezzo:'€ 460,00',protocolli:['BACnet MS/TP'],alimentazione:'80-265Vac',note:'4 DIN. Multifunzione.'}},
+    {id:'b_mstp',label:'BACnet\nMS/TP',type:'proto',r:13,col:'proto',icon:'⚙️',info:{titolo:'BACnet MS/TP',sottotitolo:'Token Passing RS485',note:'Baud: 9600–76800bps · Addr master: 0-127 · Max 600pt/linea · Term 120Ω'}},
+  ],links:[{s:'b_sun',t:'b_zbc',str:true},{s:'b_sun',t:'b_zrc'},{s:'b_sun',t:'b_mfd'},{s:'b_zbc',t:'b_mstp'},{s:'b_mfd',t:'b_mstp'}]},
+
+  g_seriey:{label:'Serie Y/Modbus',col:'seriey',nodes:[
+    {id:'sy_sun',label:'Serie Y\nModbus',type:'sun',r:30,col:'seriey',icon:'🔥',info:{titolo:'Serie Y – Modbus RTU/TCP',sottotitolo:'Regolazione HVAC-R',note:'YLC 880 e GPC 642. CosterCAD/Diagram. Riscaldamento, raffrescamento, ACS, monitoraggio.'}},
+    {id:'sy_ylc',label:'YLC 880',type:'device',r:20,col:'seriey',icon:'🔥',info:{titolo:'YLC 880',sottotitolo:'Regolatore Multi-Configurabile',prezzo:'Su richiesta',protocolli:['Modbus RTU','Modbus TCP'],porte:'2×RS485',note:'32 misure, 32 scheduler. Espandibile EST/ESU/ESP.'}},
+    {id:'sy_gpc',label:'GPC 642',type:'device',r:17,col:'seriey',icon:'🔥',info:{titolo:'GPC 642',sottotitolo:'Compatto con modem 4G integrato',prezzo:'Su richiesta',protocolli:['Modbus RTU','M-Bus'],io:'6UI·4DO·1AO',note:'4G engine. App preconfigurate. CSW 868 per sonde radio.'}},
+    {id:'sy_q',label:'Quadri Q88/Q38',type:'accessory',r:14,col:'seriey',icon:'📦',info:{titolo:'Quadri Elettrici Serie Y',sottotitolo:'Q88 (2G) · Q38 (4G)',prezzo:'€3.550–€5.500',note:'Q880–Q884 (MDM 232) · Q380–Q384 (RUT 302). 18 o 3×18 DIN.'}},
+    {id:'sy_mod',label:'Modbus RTU',type:'proto',r:13,col:'proto',icon:'⚙️',info:{titolo:'Modbus RTU',sottotitolo:'Default 19200/N/8/1',note:'Baud: 1200–115200bps · Parità: N/E/O · CRC16'}},
+  ],links:[{s:'sy_sun',t:'sy_ylc',str:true},{s:'sy_sun',t:'sy_gpc',str:true},{s:'sy_ylc',t:'sy_q'},{s:'sy_ylc',t:'sy_mod'},{s:'sy_gpc',t:'sy_mod'}]},
+
+  g_radio:{label:'Radio 868 MHz',col:'radio',nodes:[
+    {id:'r_sun',label:'Radio\n868 MHz',type:'sun',r:30,col:'radio',icon:'📡',info:{titolo:'Sistema Radio 868 MHz',sottotitolo:'Reti wireless bidirezionali ISM',note:'Frequenza 868 MHz ISM. Bidirezionale. Elimina cablaggio in impianti esistenti.'}},
+    {id:'r_csw',label:'CSW 868',type:'device',r:19,col:'radio',icon:'📡',info:{titolo:'CSW 868',sottotitolo:'Concentratore Sonde Radio',prezzo:'€ 470,00',protocolli:['Radio 868 MHz'],io:'≤40 device',note:'1 DIN. Antenna inclusa. THP/PCP/COP/STT/STU 868H, ATR 868.'}},
+    {id:'r_brg',label:'BRG 868\n868C',type:'device',r:16,col:'radio',icon:'📡',info:{titolo:'BRG 868 / BRG 868C',sottotitolo:'Bridge wireless €580 cad.',prezzo:'€ 580,00',protocolli:['Radio 868 MHz'],note:'Bridge: ≤7 BRG 868 (BA) / ≤16 (Monitor). Estende RS-485 via radio.'}},
+    {id:'r_cop',label:'COP 868\nTHP 868',type:'sensor',r:13,col:'radio',icon:'🌿',info:{titolo:'Sonde Radio 868',sottotitolo:'CO₂, T/UR/P, temperatura, impulsi',note:'COP 868: CO₂ (€580) · THP 868: T+UR+P · STT/STU 868H · ATR 868: attuatore (€180) · PCP 868: impulsi (€180)'}},
+    {id:'r_ant',label:'ANT 868\nAPA 500',type:'accessory',r:11,col:'proto',icon:'📶',info:{titolo:'Antenne',sottotitolo:'ANT 868 €150 · APA 500 €56',note:'ANT 868: antenna potenziata. APA 500: prolunga SMA 5m.'}},
+  ],links:[{s:'r_sun',t:'r_csw',str:true},{s:'r_sun',t:'r_brg'},{s:'r_csw',t:'r_cop'},{s:'r_csw',t:'r_ant'},{s:'r_brg',t:'r_ant'}]},
+
+  g_sup:{label:'Supervisione',col:'sup',nodes:[
+    {id:'s_sun',label:'Supervisione',type:'sun',r:28,col:'sup',icon:'🌐',info:{titolo:'Supervisione & Connettività',sottotitolo:'Router, modem, licenze, SW',note:'Tutto per connettere il sistema in locale (Ethernet, C-Bus) e da remoto (4G, 2G).'}},
+    {id:'s_rut',label:'RUT 302',type:'device',r:17,col:'sup',icon:'📶',info:{titolo:'RUT 302 – Router 4G',sottotitolo:'RS485 + C-Bus + Ethernet',prezzo:'€ 530,00',protocolli:['4G LTE','Ethernet','RS485','C-Bus'],note:'3 DIN. Config webserver. C-Bus + Modbus simultaneo.'}},
+    {id:'s_mdm',label:'MDM 232',type:'device',r:14,col:'sup',icon:'📱',info:{titolo:'MDM 232 – Modem GSM/2G',sottotitolo:'RS232 · SIM M2M',prezzo:'€ 438,00',protocolli:['2G GSM','RS232'],note:'1 DIN. Per YLC 880 e YHC 700.'}},
+    {id:'s_cws',label:'Webgarage\nCWS',type:'software',r:16,col:'sup',icon:'🔑',info:{titolo:'Webgarage – Licenze',prezzo:'€970–€15.120',note:'100pt €970 · 500pt €2.750 · 1K €3.785 · 2K €5.615 · 5K €10.315 · 10K €15.120\nMAINT annuale: 100pt €200 · 1K €775'}},
+  ],links:[{s:'s_sun',t:'s_rut',str:true},{s:'s_sun',t:'s_mdm'},{s:'s_sun',t:'s_cws',str:true}]},
+
+  g_esp:{label:'Espansione I/O',col:'esp',nodes:[
+    {id:'ex_sun',label:'Espansione\nI/O',type:'sun',r:28,col:'esp',icon:'🧩',info:{titolo:'Moduli Espansione I/O',sottotitolo:'Collegamento Modbus RTU a YLC/ZBC',note:'Tutti su RS-485 Modbus RTU. Max 150 pt fisici/regolatore (Coster).'}},
+    {id:'ex_est',label:'EST 482',type:'device',r:17,col:'esp',icon:'🧩',info:{titolo:'EST 482',sottotitolo:'8 Ingressi Universali',prezzo:'Su richiesta',protocolli:['Modbus RTU'],io:'8 UI',note:'PT1000/NTC 10K/1K/Ni1000/Potenziometro. 4 DIN.'}},
+    {id:'ex_esu',label:'ESU 402',type:'device',r:15,col:'esp',icon:'🧩',info:{titolo:'ESU 402',sottotitolo:'4 Uscite Analogiche 0-10V',prezzo:'Su richiesta',protocolli:['Modbus RTU'],io:'4 AO 0-10Vdc',note:'4 DIN.'}},
+    {id:'ex_esp',label:'ESP 442',type:'device',r:15,col:'esp',icon:'🧩',info:{titolo:'ESP 442',sottotitolo:'I/O Misto',prezzo:'Su richiesta',protocolli:['Modbus RTU'],io:'2 Sonde · 4 DI/AI · 4 DO',note:'4 DIN.'}},
+  ],links:[{s:'ex_sun',t:'ex_est',str:true},{s:'ex_sun',t:'ex_esu'},{s:'ex_sun',t:'ex_esp'}]},
+
+  g_proto:{label:'Protocolli',col:'proto',nodes:[
+    {id:'p_sun',label:'Protocolli\nSeriali',type:'sun',r:28,col:'proto',icon:'⚙️',info:{titolo:'Protocolli & Parametri',sottotitolo:'RS485 · Modbus · BACnet · C-Bus · M-Bus',note:'Tutti i parametri di configurazione delle porte seriali Coster.'}},
+    {id:'p_rs485',label:'RS 485',type:'device',r:16,col:'proto',icon:'🔌',info:{titolo:'RS 485 – Fisico',sottotitolo:'EIA-485 Half-duplex',note:'Tipo: bilanciato · Cavo: AWG22-24 schermato · Term: 120Ω · Max 32 nodi · Dist: 1200m@100kbps'}},
+    {id:'p_mod',label:'Modbus RTU',type:'device',r:15,col:'seriey',icon:'⚙️',info:{titolo:'Modbus RTU',sottotitolo:'19200/N/8/1 default',note:'Baud: 1200–115200 · Parità: N/E/O · Stop: 1-2 · CRC16'}},
+    {id:'p_bac',label:'BACnet\nMS/TP',type:'device',r:14,col:'bacnet',icon:'⚙️',info:{titolo:'BACnet MS/TP',note:'9600–76800bps · Addr 0-127 (master) · Max 600pt/linea'}},
+    {id:'p_mbus2',label:'M-Bus',type:'device',r:13,col:'monitor',icon:'⚙️',info:{titolo:'M-Bus EN 13757',note:'300/2400/9600bps · 2 fili · ≤5 device diretti su EHC 602'}},
+  ],links:[{s:'p_sun',t:'p_rs485',str:true},{s:'p_sun',t:'p_mod',str:true},{s:'p_sun',t:'p_bac'},{s:'p_sun',t:'p_mbus2'},{s:'p_rs485',t:'p_mod'},{s:'p_rs485',t:'p_bac'}]},
+
+  g_monitor:{label:'Monitoring',col:'monitor',nodes:[
+    {id:'m_sun',label:'Monitoring\nEnergetico',type:'sun',r:28,col:'monitor',icon:'📊',info:{titolo:'Monitoring Energetico',sottotitolo:'Elettrico, termico, idrico, ambientale',note:'Acquisizione consumi e parametri. Protocolli: M-Bus, Modbus, BACnet, radio 868.'}},
+    {id:'m_mfd',label:'MFD 448/548',type:'device',r:16,col:'monitor',icon:'⚡',info:{titolo:'MFD 448 / 548',sottotitolo:'Analizzatori rete elettrica',prezzo:'MFD 448: €610 · MFD 548: €640',protocolli:['Modbus RTU'],note:'Mono/trifase. TA 1-5A. MFD 548: MID. MFD 418: Rogowski €560.'}},
+    {id:'m_mhf',label:'MHF/MHN',type:'device',r:14,col:'monitor',icon:'🌡️',info:{titolo:'MHF / MHN – Contatori Calore',sottotitolo:'MHF: M-Bus · MHN: meccanico',prezzo:'MHN 15: €342+',note:'MID cert. Classe 3 EN1434. 3–90°C. DN 15–20.'}},
+    {id:'m_cmc',label:'CMC 422/428',type:'device',r:14,col:'monitor',icon:'🔄',info:{titolo:'CMC 422/428 – Converter M-Bus',prezzo:'€ 480,00',protocolli:['M-Bus','Modbus RTU','C-Bus'],note:'≤5 device M-Bus. CMC 428: 230Vac M-Bus→Modbus. CMC 422: 12-24V M-Bus→C-Bus.'}},
+  ],links:[{s:'m_sun',t:'m_mfd',str:true},{s:'m_sun',t:'m_mhf'},{s:'m_sun',t:'m_cmc'},{s:'m_mhf',t:'m_cmc'}]},
+
+  // TEKTELIC sub-categories (abbreviated)
+  t_gw:{label:'Gateway KONA',col:'tgw',nodes:[
+    {id:'tg_sun',label:'KONA\nGateways',type:'sun',r:32,col:'tgw',icon:'📶',info:{titolo:'KONA Gateway Family',sottotitolo:'Carrier-grade LoRaWAN gateways',note:'9 modelli dal Mega (72Rx) al Photon (solare). Tutti supportano global ISM bands.'}},
+    {id:'tg_mega',label:'KONA Mega',type:'device',r:19,col:'tgw',icon:'📶',info:{titolo:'KONA Mega IoT Gateway',sottotitolo:'72Rx/8Tx · Full Duplex · IP67',prezzo:'Su richiesta',protocolli:['LoRaWAN','GPS TDoA'],porte:'Ethernet/Optical·3G/4G·GPS',note:'Cavity Duplexer. Rx Diversity. 2×30dBm. GPS Holdover 24h. 12M msg/day. -40/+60°C.'}},
+    {id:'tg_macro',label:'KONA Macro',type:'device',r:16,col:'tgw',icon:'📶',info:{titolo:'KONA Macro IoT Gateway',sottotitolo:'16Rx/2Tx · Compact outdoor',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'Cavity Filter. 27dBm. Geolocation opt. Pole/lamp/tower/wall.'}},
+    {id:'tg_ent',label:'KONA\nEnterprise',type:'device',r:14,col:'tgw',icon:'📶',info:{titolo:'KONA Enterprise Gateway',sottotitolo:'8Rx/1Tx · IP67 · PoE',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'Ceramic filter. Antenne integrate. Plug&play. DIN/pole/wall.'}},
+    {id:'tg_micro',label:'KONA Micro',type:'device',r:14,col:'tgw',icon:'📶',info:{titolo:'KONA Micro IoT Gateway',sottotitolo:'8Rx/1Tx · Indoor · Battery 4-6h',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'Battery backup. Desktop/wall. 27dBm.'}},
+    {id:'tg_photon',label:'KONA Photon',type:'device',r:14,col:'tgw',icon:'☀️',info:{titolo:'KONA Photon Gateway',sottotitolo:'8Rx/1Tx · Solar · 50/100h Battery',prezzo:'Su richiesta',protocolli:['LoRaWAN','3G/4G'],note:'Zero footprint solare. IP67. -30/+65°C. Remote areas.'}},
+    {id:'tg_strand',label:'Strand Macro',type:'device',r:13,col:'tgw',icon:'📶',info:{titolo:'KONA Strand Macro',sottotitolo:'32Rx/1Tx · DOCSIS cable',prezzo:'Su richiesta',note:'HFC network. Cavity duplexer. GPS Holdover. NA915.'}},
+  ],links:[{s:'tg_sun',t:'tg_mega',str:true},{s:'tg_sun',t:'tg_macro',str:true},{s:'tg_sun',t:'tg_ent'},{s:'tg_sun',t:'tg_micro'},{s:'tg_sun',t:'tg_photon'},{s:'tg_sun',t:'tg_strand'}]},
+
+  t_city:{label:'Smart City Sensors',col:'tcity',nodes:[
+    {id:'tc_sun',label:'Smart City\nSensori',type:'sun',r:30,col:'tcity',icon:'🏙️',info:{titolo:'Smart City & Building Sensors',sottotitolo:'COMFORT, BREEZE, TUNDRA, AURA, MEMO',note:'Sensori per ambienti indoor: T, UR, CO₂, luce, occupazione, consumi. LoRaWAN.'}},
+    {id:'tc_comfort',label:'COMFORT\nVIVID',type:'device',r:17,col:'tcity',icon:'🌡️',info:{titolo:'COMFORT & VIVID',sottotitolo:'Smart Room Sensor multifunzione',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'T, UR, luce, motion, shock, leak, porte. Configurabile OTA.'}},
+    {id:'tc_breeze',label:'BREEZE\nBREEZE-V',type:'device',r:16,col:'tcity',icon:'💨',info:{titolo:'BREEZE & BREEZE-V – CO₂ Monitor',sottotitolo:'CO₂+T+UR+pressione+luce',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'BREEZE-V: aggiunge PIR. App mobile iOS/Android.'}},
+    {id:'tc_tundra',label:'TUNDRA',type:'device',r:14,col:'tcity',icon:'🧊',info:{titolo:'TUNDRA Sensor',sottotitolo:'Cold chain -40/+85°C · 15yr',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'125 days/3000 entries stored. Farmaceutici, vaccini, food.'}},
+    {id:'tc_aura',label:'AURA\nFLUX',type:'device',r:13,col:'tcity',icon:'🔌',info:{titolo:'AURA & FLUX',sottotitolo:'Smart AC Outlet & Switch',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'Misura consumo. On/Off remote/event/programmed. Tamper resistant.'}},
+    {id:'tc_memo',label:'MEMO\nDisplay',type:'device',r:13,col:'tcity',icon:'🖥️',info:{titolo:'MEMO – Multi Purpose Display Tablet',sottotitolo:'E-Ink 1072×720 · 12 mesi batteria',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'4 schermi precaricabili, 5 icone, 6 pulsanti. Multilingual.'}},
+    {id:'tc_tempo',label:'TEMPO\nRoom Booking',type:'device',r:13,col:'tcity',icon:'📅',info:{titolo:'TEMPO – Meeting Room Booking',sottotitolo:'Outlook + Google Cal integrato',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'Analytics utilizzo sale. HVAC optimization.'}},
+  ],links:[{s:'tc_sun',t:'tc_comfort',str:true},{s:'tc_sun',t:'tc_breeze',str:true},{s:'tc_sun',t:'tc_tundra'},{s:'tc_sun',t:'tc_aura'},{s:'tc_sun',t:'tc_memo'},{s:'tc_sun',t:'tc_tempo'}]},
+
+  t_track:{label:'Asset Tracker',col:'ttrack',nodes:[
+    {id:'tt_sun',label:'Asset &\nPeople Tracker',type:'sun',r:30,col:'ttrack',icon:'📍',info:{titolo:'Asset & People Trackers',sottotitolo:'GPS + BLE per indoor/outdoor',note:'ORCA, STORK, SPARROW, SEAL, PELICAN, CHICKADEE. LoRaWAN + BLE + GPS.'}},
+    {id:'tt_orca',label:'ORCA',type:'device',r:17,col:'ttrack',icon:'📍',info:{titolo:'ORCA – Industrial GPS Tracker',sottotitolo:'5yr · IP67 · D Cell',prezzo:'Su richiesta',protocolli:['LoRaWAN','GPS','BLE (opt)'],note:'-40/+85°C. Accelerometro. 195×101mm.'}},
+    {id:'tt_seal',label:'SEAL\nSEAL Ex',type:'device',r:16,col:'ttrack',icon:'🦺',info:{titolo:'SEAL & SEAL Ex – Wearable GPS',sottotitolo:'15 mesi · fall detection · ATEX opt',prezzo:'Su richiesta',protocolli:['LoRaWAN','GPS','BLE'],note:'Geofencing. Audio+visual alarms. Harness detection opt.'}},
+    {id:'tt_sparrow',label:'SPARROW',type:'device',r:14,col:'ttrack',icon:'📍',info:{titolo:'SPARROW – Enterprise Tracker',sottotitolo:'5yr tracker / 16mo beacon',prezzo:'Su richiesta',protocolli:['LoRaWAN','BLE'],note:'Ospedali RF difficili. Pattern movement analysis.'}},
+    {id:'tt_chick',label:'CHICKADEE',type:'device',r:13,col:'ttrack',icon:'🏷️',info:{titolo:'CHICKADEE – Badge Tracker',sottotitolo:'GPS+BLE+WiFi · 6mo · LR1110',prezzo:'Su richiesta',protocolli:['LoRaWAN','BLE','WiFi sniffing','GNSS'],note:'Passive RFID. Critical infrastructure.'}},
+    {id:'tt_pelican',label:'PELICAN\nPELICAN Ex',type:'device',r:13,col:'ttrack',icon:'📍',info:{titolo:'PELICAN / PELICAN Ex',sottotitolo:'15yr tracker / ATEX opt',prezzo:'Su richiesta',protocolli:['LoRaWAN','BLE'],note:'Manufacturing, shipping, rail yards. PELICAN Ex: ATEX Zone 2.'}},
+  ],links:[{s:'tt_sun',t:'tt_orca',str:true},{s:'tt_sun',t:'tt_seal',str:true},{s:'tt_sun',t:'tt_sparrow'},{s:'tt_sun',t:'tt_chick'},{s:'tt_sun',t:'tt_pelican'}]},
+
+  t_health:{label:'eHealth',col:'thealth',nodes:[
+    {id:'th_sun',label:'eHealth',type:'sun',r:26,col:'thealth',icon:'❤️',info:{titolo:'eHealth Devices',sottotitolo:'Monitoraggio salute continuo via LoRaWAN',note:'eDoctor e eBeat per monitoraggio pazienti, anziani, lavoratori in ambienti hazardous.'}},
+    {id:'th_edoc',label:'eDoctor',type:'device',r:17,col:'thealth',icon:'🫁',info:{titolo:'eDoctor – Respiratory Sensor',sottotitolo:'T corpo · respiro · battito · SPO₂',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'3 mesi batteria. Strap lavabile. Self-cal chest expansion. App desktop.'}},
+    {id:'th_ebeat',label:'eBeat',type:'device',r:15,col:'thealth',icon:'💓',info:{titolo:'eBeat Arm Band',sottotitolo:'T · FC · SPO₂ · 4 mesi',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'Pazienti e anziani. Always-on. Allarme caregiver immediato.'}},
+  ],links:[{s:'th_sun',t:'th_edoc',str:true},{s:'th_sun',t:'th_ebeat',str:true}]},
+
+  t_agri:{label:'Agricoltura',col:'tagri',nodes:[
+    {id:'ta_sun',label:'Smart\nAgricoltura',type:'sun',r:26,col:'tagri',icon:'🌱',info:{titolo:'Smart Agriculture',sottotitolo:'KIWI & CLOVER – suolo e ambiente',note:'Soil moisture/T, ambient T/UR, light, orientation. IP67. 10yr battery.'}},
+    {id:'ta_kiwi',label:'KIWI',type:'device',r:16,col:'tagri',icon:'🌿',info:{titolo:'KIWI',sottotitolo:'Post/Fence/Vine mount · IP67',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'T/UR ambientale, luce. Orientation detection. C Cell LTC.'}},
+    {id:'ta_clover',label:'CLOVER',type:'device',r:15,col:'tagri',icon:'🌱',info:{titolo:'CLOVER',sottotitolo:'Soil Surface mount · IP67',prezzo:'Su richiesta',protocolli:['LoRaWAN'],note:'Soil moisture+T. Orientation. Light. C Cell LTC. 10yr.'}},
+  ],links:[{s:'ta_sun',t:'ta_kiwi',str:true},{s:'ta_sun',t:'ta_clover',str:true}]},
+
+  t_srv:{label:'Server & App',col:'tsrv',nodes:[
+    {id:'ts_sun',label:'Server\n& App',type:'sun',r:28,col:'tsrv',icon:'☁️',info:{titolo:'Server & Applications',sottotitolo:'NS, OA&M, Geolocation, LOCUS, App Server',note:'Stack server completo carrier-grade per gestione rete LoRaWAN e applicazioni IoT.'}},
+    {id:'ts_ns',label:'KONA Core\nNS',type:'device',r:17,col:'tsrv',icon:'☁️',info:{titolo:'KONA Core Network Server',sottotitolo:'>five 9s · LoRaWAN 1.0.x/1.1',prezzo:'Su richiesta',protocolli:['LoRaWAN NS','MQTT TLS','REST API'],note:'FDD+TDD. Sub-customers. Geolocation server. TEKTELIC+3rd party GW.'}},
+    {id:'ts_oam',label:'OA&M\nServer',type:'device',r:14,col:'tsrv',icon:'🛠️',info:{titolo:'KONA Element OA&M',sottotitolo:'Config, allarmi, SW management',prezzo:'Su richiesta',note:'Monitor gateway operation. Spectral scan. Performance KPI.'}},
+    {id:'ts_app',label:'Application\nServer',type:'device',r:14,col:'tsrv',icon:'📊',info:{titolo:'Application Server',sottotitolo:'Dashboard multitenant, rule engine',prezzo:'Su richiesta',protocolli:['MQTT','REST','TLS'],note:'Custom widgets. Horizontally scalable. Open-source tech.'}},
+    {id:'ts_geo',label:'Geolocation\nServer',type:'device',r:13,col:'tsrv',icon:'🗺️',info:{titolo:'Geolocation Server',sottotitolo:'TDoA localization senza GPS sul device',prezzo:'Su richiesta',note:'TOA+FO estimation. KONA Mega+Macro. TEKTELIC o 3rd party NS.'}},
+    {id:'ts_locus',label:'LOCUS\nRTLS',type:'device',r:13,col:'tsrv',icon:'📍',info:{titolo:'TEKTELIC LOCUS',sottotitolo:'Real-time location services',prezzo:'Su richiesta',note:'Floor plan/map. Multi-campus/building/floor. SAP integration. Geofencing.'}},
+  ],links:[{s:'ts_sun',t:'ts_ns',str:true},{s:'ts_sun',t:'ts_oam'},{s:'ts_sun',t:'ts_app',str:true},{s:'ts_sun',t:'ts_geo'},{s:'ts_sun',t:'ts_locus'},{s:'ts_ns',t:'ts_app'},{s:'ts_ns',t:'ts_geo'},{s:'ts_app',t:'ts_locus'}]},
+
+  t_safety:{label:'Safety',col:'tsafety',nodes:[
+    {id:'tsf_sun',label:'Safety\nDevices',type:'sun',r:24,col:'tsafety',icon:'🛡️',info:{titolo:'Safety Devices',sottotitolo:'ROBIN (outdoor) · FINCH (indoor)',note:'Pulsanti di panico BLE+LoRaWAN. SOS con posizione. Lone worker, senior care.'}},
+    {id:'tsf_robin',label:'ROBIN',type:'device',r:15,col:'tsafety',icon:'🆘',info:{titolo:'ROBIN – Outdoor Panic Button',sottotitolo:'15yr · belt clip · outdoor',prezzo:'Su richiesta',protocolli:['LoRaWAN','BLE'],note:'Lone worker, oil&gas, mining, hospitality.'}},
+    {id:'tsf_finch',label:'FINCH',type:'device',r:14,col:'tsafety',icon:'🆘',info:{titolo:'FINCH – Indoor Panic Button',sottotitolo:'5yr · belt clip · indoor',prezzo:'Su richiesta',protocolli:['LoRaWAN','BLE'],note:'Senior care, children, hospitality, warehouses.'}},
+    {id:'tsf_stork',label:'STORK',type:'device',r:13,col:'ttrack',icon:'📦',info:{titolo:'STORK – Asset Tracker',sottotitolo:'5yr · BLE · GNSS · IP67',prezzo:'Su richiesta',protocolli:['LoRaWAN','BLE','GNSS'],note:'Side clips per pallet. Construction, manufacturing.'}},
+  ],links:[{s:'tsf_sun',t:'tsf_robin',str:true},{s:'tsf_sun',t:'tsf_finch',str:true},{s:'tsf_sun',t:'tsf_stork'}]},
+};
+
+// ══════════════════════════════════════════════════════════
+//   D3 SETUP
+// ══════════════════════════════════════════════════════════
+const W=innerWidth,H=innerHeight;
+const svg=d3.select('#g').attr('viewBox',`0 0 ${W} ${H}`);
+const defs=svg.append('defs');
+const rg=defs.append('radialGradient').attr('id','hub-grad');
+rg.append('stop').attr('offset','0%').attr('stop-color','#fff').attr('stop-opacity',.18);
+rg.append('stop').attr('offset','100%').attr('stop-color','#fff').attr('stop-opacity',.03);
+
+const gMain=svg.append('g');
+const zoom=d3.zoom().scaleExtent([.15,4]).on('zoom',e=>gMain.attr('transform',e.transform));
+svg.call(zoom);
+svg.on('click',hidePopup);
+
+let sim=null;
+
+function render(nodes,links,isGalaxy=false){
+  if(sim) sim.stop();
+  const ns=nodes.map(n=>({...n,x:W/2+(Math.random()-.5)*80,y:H/2+(Math.random()-.5)*80}));
+  const nodeMap={};ns.forEach(n=>nodeMap[n.id]=n);
+  const ls=links.map(l=>({source:l.s||l.source,target:l.t||l.target,str:l.str,bridge:l.bridge}));
+
+  defs.selectAll('filter.gf').remove();
+  ns.forEach(n=>{
+    const fid=`gf-${n.id}`;
+    const f=defs.append('filter').attr('class','gf').attr('id',fid).attr('x','-60%').attr('y','-60%').attr('width','220%').attr('height','220%');
+    f.append('feGaussianBlur').attr('stdDeviation','7').attr('result','b');
+    const m=f.append('feMerge');m.append('feMergeNode').attr('in','b');m.append('feMergeNode').attr('in','SourceGraphic');
+  });
+
+  gMain.selectAll('*').remove();
+
+  // links
+  const linkG=gMain.append('g');
+  const linkEls=linkG.selectAll('line').data(ls).enter().append('line')
+    .attr('class',d=>d.bridge?'link bridge-link':d.str?'link strong':'link')
+    .attr('stroke',d=>{
+      if(d.bridge) return '#e879f9';
+      const sn=typeof d.source==='object'?d.source:nodeMap[d.source];
+      return sn?rc(sn.col):'#888';
+    });
+
+  // nodes
+  const nodeG=gMain.append('g');
+  const nodeEls=nodeG.selectAll('g.node').data(ns).enter().append('g')
+    .attr('class','node')
+    .call(d3.drag()
+      .on('start',(e,d)=>{if(!e.active)sim.alphaTarget(.3).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag', (e,d)=>{d.fx=e.x;d.fy=e.y;})
+      .on('end',  (e,d)=>{if(!e.active)sim.alphaTarget(0);d.fx=null;d.fy=null;})
+    )
+    .on('click',(e,d)=>{
+      e.stopPropagation();
+      if(d.drillable&&SYSTEMS[d.id]) navigateTo(d.id);
+      else showPopup(e,d);
+    });
+
+  // glow ring
+  nodeEls.filter(d=>d.type!=='device'&&d.type!=='accessory'&&d.type!=='sensor'&&d.type!=='software'&&d.type!=='proto')
+    .append('circle').attr('class','pulse-ring')
+    .attr('r',d=>d.r+10).attr('fill','none')
+    .attr('stroke',d=>rc(d.col)).attr('stroke-width',1.5).attr('stroke-opacity',.18);
+
+  // bridge dashed ring
+  nodeEls.filter(d=>d.type==='bridge')
+    .append('circle').attr('r',d=>d.r+18).attr('fill','none')
+    .attr('stroke',d=>rc(d.col)).attr('stroke-width',1.2)
+    .attr('stroke-dasharray','4 4').attr('stroke-opacity',.5);
+
+  // drillable dashed ring
+  nodeEls.filter(d=>d.drillable&&d.type!=='bridge')
+    .append('circle').attr('r',d=>d.r+14).attr('fill','none')
+    .attr('stroke',d=>rc(d.col)).attr('stroke-width',1)
+    .attr('stroke-dasharray','3 5').attr('stroke-opacity',.3);
+
+  // main circle
+  nodeEls.append('circle').attr('class','main-circle')
+    .attr('r',d=>d.r)
+    .attr('fill',d=>d.type==='hub'?'url(#hub-grad)':rc(d.col)+'18')
+    .attr('stroke',d=>rc(d.col))
+    .attr('stroke-width',d=>d.type==='hub'?3:d.type==='sun'||d.type==='cat'||d.type==='bridge'?2.5:1.8)
+    .attr('filter',d=>(d.type==='hub'||d.type==='sun'||d.type==='cat'||d.type==='bridge')?`url(#gf-${d.id})`:'none');
+
+  // icon
+  nodeEls.filter(d=>d.type==='hub'||d.type==='sun'||d.type==='cat'||d.type==='bridge')
+    .append('text').attr('text-anchor','middle').attr('dominant-baseline','central')
+    .attr('dy',d=>d.type==='hub'?-12:d.type==='bridge'?-8:-7)
+    .attr('font-size',d=>d.type==='hub'?'20px':d.type==='bridge'?'13px':'13px')
+    .text(d=>d.icon);
+
+  // label
+  nodeEls.append('text')
+    .attr('class',d=>`node-label ${d.type==='cat'||d.type==='hub'||d.type==='bridge'?'cat':''}`)
+    .attr('dy',d=>d.type==='hub'?13:d.type==='sun'||d.type==='cat'||d.type==='bridge'?9:4)
+    .each(function(d){
+      const el=d3.select(this);
+      const lines=d.label.split('\n');
+      if(lines.length===1){el.text(lines[0]);return;}
+      lines.forEach((ln,i)=>el.append('tspan').attr('x',0).attr('dy',i===0?0:'1.1em').text(ln));
+    });
+
+  sim=d3.forceSimulation(ns)
+    .force('link',d3.forceLink(ls).id(d=>d.id).distance(d=>{
+      const sn=typeof d.source==='object'?d.source:nodeMap[d.source];
+      const tn=typeof d.target==='object'?d.target:nodeMap[d.target];
+      if(d.bridge) return 200;
+      if(sn&&(sn.type==='hub')) return 195;
+      if(sn&&(sn.type==='sun'||sn.type==='cat')){
+        if(tn&&(tn.type==='device'||tn.type==='sensor')) return d.str?130:150;
+        return 120;
+      }
+      return 85;
+    }).strength(d=>d.bridge?.4:.62))
+    .force('charge',d3.forceManyBody().strength(d=>{
+      if(d.type==='hub') return -1600;
+      if(d.type==='sun'||d.type==='cat'||d.type==='bridge') return -700;
+      if(d.type==='device') return -260;
+      return -160;
+    }))
+    .force('center',d3.forceCenter(W/2,H/2))
+    .force('collision',d3.forceCollide(d=>d.r+20).strength(.82))
+    .on('tick',()=>{
+      linkEls.attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+              .attr('x2',d=>d.target.x).attr('y2',d=>d.target.y);
+      nodeEls.attr('transform',d=>`translate(${d.x},${d.y})`);
+    });
+
+  gMain.style('opacity',0);
+  gMain.transition().duration(320).style('opacity',1);
+  setTimeout(()=>{
+    svg.transition().duration(650).call(zoom.transform,
+      d3.zoomIdentity.translate(W*(1-.78)/2,H*(1-.78)/2).scale(.78));
+  },450);
+}
+
+// ══════════════════════════════════════════════════════════
+//   NAVIGATION
+// ══════════════════════════════════════════════════════════
+let currentCtx=null;
+
+function navigateTo(id){
+  hidePopup();
+  currentCtx=id;
+  const backBtn=document.getElementById('back-btn');
+  const breadcrumb=document.getElementById('breadcrumb');
+  const bcRoot=document.getElementById('bc-root');
+  breadcrumb.querySelectorAll('.bc-item:not(#bc-root),.bc-sep').forEach(e=>e.remove());
+
+  if(!id){
+    backBtn.style.display='none';
+    bcRoot.className='bc-item active';
+    render(GALAXY.nodes,GALAXY.links,true);
+  } else {
+    const sys=SYSTEMS[id];
+    if(!sys) return;
+    backBtn.style.display='flex';
+    bcRoot.className='bc-item';
+    const sep=document.createElement('span');sep.className='bc-sep';sep.textContent='›';
+    breadcrumb.appendChild(sep);
+    const item=document.createElement('span');item.className='bc-item active';
+    item.style.color=rc(sys.col);item.textContent=sys.label;
+    breadcrumb.appendChild(item);
+    render(sys.nodes,sys.links,false);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+//   POPUP
+// ══════════════════════════════════════════════════════════
+function showPopup(event,d){
+  const pop=document.getElementById('popup');
+  const body=document.getElementById('popup-body');
+  const col=rc(d.col);
+  const info=d.info||{};
+  let html=`<div class="ph">
+    <div class="ph-icon" style="background:${col}20;border:1.5px solid ${col}40">${d.icon||'📦'}</div>
+    <div><div class="ph-title" style="color:${col}">${info.titolo||d.label}</div>
+    <div class="ph-sub">${info.sottotitolo||''}</div></div></div>`;
+  if(info.prezzo){
+    const onReq=info.prezzo.includes('richiesta')||info.prezzo==='—';
+    html+=`<div class="price-badge" style="border-color:${col}30">
+      <span class="price-label">Prezzo</span>
+      <span style="color:${onReq?'var(--muted)':col}">${info.prezzo}</span></div>`;
+  }
+  if(info.protocolli&&info.protocolli.length&&info.protocolli[0]!=='—'){
+    html+=`<div class="sec-label">Protocolli</div><div class="tags">`;
+    info.protocolli.forEach(p=>html+=`<span class="tag" style="background:${col}1a;border:1px solid ${col}35;color:${col}">${p}</span>`);
+    html+=`</div>`;
+  }
+  const rows=[];
+  if(info.porte) rows.push(['Porte',info.porte]);
+  if(info.io) rows.push(['I/O',info.io]);
+  if(info.alimentazione) rows.push(['Alim.',info.alimentazione]);
+  if(rows.length){
+    html+=`<div class="divider"></div><div class="rows">`;
+    rows.forEach(([k,v])=>html+=`<div class="row"><span class="rk">${k}</span><span class="rv">${v}</span></div>`);
+    html+=`</div>`;
+  }
+  if(info.note) html+=`<div class="note" style="border-color:${col}80">${info.note.replace(/\n/g,'<br>')}</div>`;
+  if(d.drillable&&SYSTEMS[d.id]) html+=`<div class="drill-hint" style="background:${col}14;color:${col}">↗ Clicca sul nodo per entrare nel sistema</div>`;
+  if(d.type==='bridge') html+=`<div class="drill-hint" style="background:${col}14;color:${col}">🔗 Clicca per esplorare il bridge</div>`;
+  body.innerHTML=html;
+  const margin=14,pw=360,ph=430;
+  let px=event.pageX+14,py=event.pageY-18;
+  if(px+pw>innerWidth-margin) px=event.pageX-pw-14;
+  if(py+ph>innerHeight-margin) py=innerHeight-ph-margin;
+  if(py<60) py=60;
+  pop.style.left=px+'px';pop.style.top=py+'px';pop.style.display='block';
+}
+
+function hidePopup(){document.getElementById('popup').style.display='none';}
+document.getElementById('popup-close').addEventListener('click',hidePopup);
+document.getElementById('popup').addEventListener('click',e=>e.stopPropagation());
+
+// ══════════════════════════════════════════════════════════
+//   INIT
+// ══════════════════════════════════════════════════════════
+navigateTo(null);
+</script>
+</body>
+</html>
