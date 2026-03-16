@@ -188,6 +188,22 @@ const EV_COLORS = ['rgba(99,179,255,.85)', /* ... */, 'rgba(X,Y,Z,.85)'];
 
 ## Git workflow
 
+### IMPORTANTE — Prima di ogni sessione di sviluppo
+
+Il repo locale NON si aggiorna automaticamente quando un PR viene mergiato su GitHub.
+Se non si sincronizza, la nuova sessione parte da una base vecchia e il PR successivo
+avrà conflitti anche su file che sembrano non correlati.
+
+**Eseguire SEMPRE questi due comandi prima di fare qualsiasi modifica:**
+
+```bash
+git fetch origin main
+git rebase origin/main
+```
+
+Se si è già su un branch claude/ con commit, il rebase li riapplica sulla nuova base
+e salta automaticamente i commit già presenti in origin/main.
+
 ```bash
 # Sviluppo su branch dedicato
 git checkout -b feature/<nome>
