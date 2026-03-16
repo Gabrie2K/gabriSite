@@ -21,9 +21,9 @@ function getWinType(tplName) {
   if (tplName === 'Cervello' || tplName === 'Corpo Umano') return 'brain';
   if (tplName === 'Home')       return 'dashboard';
   if (tplName === 'Schema')     return 'schema';
-  if (tplName === 'Coster')     return 'coster';
-  if (tplName === 'Tektelic')   return 'tektelic';
-  if (tplName === 'FIN KB')     return 'finkb';
+  if (tplName === 'V3')          return 'v3';
+  if (tplName === 'V5')          return 'v5';
+  if (tplName === 'FIN DOCS')    return 'findocs';
   return 'constellation';
 }
 
@@ -89,9 +89,9 @@ function getBodyHTML(id, tplName, type) {
   if (type === 'brain')        return brainBodyHTML(id);
   if (type === 'dashboard')    return dashBodyHTML(id);
   if (type === 'schema')       return schemaBodyHTML(id);
-  if (type === 'coster')       return costerBodyHTML(id);
-  if (type === 'tektelic')     return tektelicBodyHTML(id);
-  if (type === 'finkb')        return finkbBodyHTML(id);
+  if (type === 'v3')            return v3BodyHTML(id);
+  if (type === 'v5')            return v5BodyHTML(id);
+  if (type === 'findocs')       return findocsBodyHTML(id);
   return graphBodyHTML(id);
 }
 
@@ -108,7 +108,7 @@ function createWin(tplName, pos) {
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema', 'Coster', 'Tektelic', 'FIN KB'];
+  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema', 'V3', 'V5', 'FIN DOCS'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
@@ -179,7 +179,7 @@ function createWin(tplName, pos) {
   } else if (type === 'page') {
     winData.pageData = null; // initialized lazily in initPage
   }
-  // coster / tektelic / finkb — no extra state needed at creation
+  // v3 / v5 / findocs — no extra state needed (iframe-based)
 
   WINS[id] = winData;
   setupWinEvents(id);
@@ -210,12 +210,12 @@ function createWin(tplName, pos) {
     requestAnimationFrame(() => initSchema(id));
   } else if (type === 'page') {
     requestAnimationFrame(() => initPage(id));
-  } else if (type === 'coster') {
-    requestAnimationFrame(() => initCoster(id));
-  } else if (type === 'tektelic') {
-    requestAnimationFrame(() => initTektelic(id));
-  } else if (type === 'finkb') {
-    requestAnimationFrame(() => initFinkb(id));
+  } else if (type === 'v3') {
+    requestAnimationFrame(() => initV3(id));
+  } else if (type === 'v5') {
+    requestAnimationFrame(() => initV5(id));
+  } else if (type === 'findocs') {
+    requestAnimationFrame(() => initFindocs(id));
   }
 
   return id;
@@ -401,12 +401,12 @@ function switchLayer(id, l) {
     requestAnimationFrame(() => initSchema(id));
   } else if (newType === 'page') {
     requestAnimationFrame(() => initPage(id));
-  } else if (newType === 'coster') {
-    requestAnimationFrame(() => initCoster(id));
-  } else if (newType === 'tektelic') {
-    requestAnimationFrame(() => initTektelic(id));
-  } else if (newType === 'finkb') {
-    requestAnimationFrame(() => initFinkb(id));
+  } else if (newType === 'v3') {
+    requestAnimationFrame(() => initV3(id));
+  } else if (newType === 'v5') {
+    requestAnimationFrame(() => initV5(id));
+  } else if (newType === 'findocs') {
+    requestAnimationFrame(() => initFindocs(id));
   }
 }
 
