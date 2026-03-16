@@ -745,9 +745,10 @@ function openMapPopup(id, pin, screenX, screenY) {
     const gRect = globe.getBoundingClientRect();
     let px = screenX - gRect.left + 12;
     let py = screenY - gRect.top  - 20;
-    // evita che esca fuori
+    // evita che esca fuori (250 = altezza approssimativa popup con sezione link)
     px = Math.min(px, gRect.width  - 240);
     py = Math.max(py, 10);
+    py = Math.min(py, gRect.height - 250);
     popup.style.left = px + 'px';
     popup.style.top  = py + 'px';
   } else {
