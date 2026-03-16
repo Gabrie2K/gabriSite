@@ -195,6 +195,14 @@
   position: relative;
 }
 
+/* ── iframe embed (V3, V5, FIN DOCS) ── */
+.win-embed-frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #04060d;
+}
+
 /* ── resize handle (angolo in basso a destra) ── */
 .rh {
   position: absolute;
