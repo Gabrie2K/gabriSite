@@ -24,6 +24,7 @@ function getWinType(tplName) {
   if (tplName === 'V3')          return 'v3';
   if (tplName === 'V5')          return 'v5';
   if (tplName === 'FIN DOCS')    return 'findocs';
+  if (tplName === 'Dispositivi') return 'devices';
   return 'constellation';
 }
 
@@ -92,6 +93,7 @@ function getBodyHTML(id, tplName, type) {
   if (type === 'v3')            return v3BodyHTML(id);
   if (type === 'v5')            return v5BodyHTML(id);
   if (type === 'findocs')       return findocsBodyHTML(id);
+  if (type === 'devices')       return devicesBodyHTML(id);
   return graphBodyHTML(id);
 }
 
@@ -108,7 +110,7 @@ function createWin(tplName, pos) {
   win.id = 'w' + id;
   win.style.cssText = `left:${x}px;top:${y}px;width:var(--win-w);height:var(--win-h);z-index:${++TZ}`;
 
-  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema', 'V3', 'V5', 'FIN DOCS'];
+  const allTabs  = ['Home', ...Object.keys(TPL), 'Calendario', 'Mappa', 'Albero', 'Note', 'Corpo Umano', 'Schema', 'Dispositivi', 'V3', 'V5', 'FIN DOCS'];
   const tabsHTML = allTabs.map(l =>
     `<button class="wtab${l === tplName ? ' active' : ''}" data-l="${l}">${l}</button>`
   ).join('');
@@ -180,6 +182,7 @@ function createWin(tplName, pos) {
     winData.pageData = null; // initialized lazily in initPage
   }
   // v3 / v5 / findocs — no extra state needed (iframe-based)
+  // devices — devData initialized lazily in initDevices
 
   WINS[id] = winData;
   setupWinEvents(id);
@@ -216,6 +219,8 @@ function createWin(tplName, pos) {
     requestAnimationFrame(() => initV5(id));
   } else if (type === 'findocs') {
     requestAnimationFrame(() => initFindocs(id));
+  } else if (type === 'devices') {
+    requestAnimationFrame(() => initDevices(id));
   }
 
   return id;
@@ -251,6 +256,7 @@ function closeW(id) {
   w._dashDispose?.();
   w._schemaDispose?.();
   w._pageDispose?.();
+  w._devDispose?.();
   w.win.remove();
   document.getElementById('tb' + id)?.remove();
   delete WINS[id];
@@ -350,6 +356,7 @@ function switchLayer(id, l) {
   w._dashDispose?.(); w._dashDispose = null;
   w._schemaDispose?.(); w._schemaDispose = null;
   w._pageDispose?.(); w._pageDispose = null;
+  w._devDispose?.(); w._devDispose = null;
 
   wb.innerHTML = getBodyHTML(id, l, newType);
 
@@ -407,6 +414,8 @@ function switchLayer(id, l) {
     requestAnimationFrame(() => initV5(id));
   } else if (newType === 'findocs') {
     requestAnimationFrame(() => initFindocs(id));
+  } else if (newType === 'devices') {
+    requestAnimationFrame(() => initDevices(id));
   }
 }
 
