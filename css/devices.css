@@ -433,3 +433,133 @@
   font-size: .48rem;
   font-weight: 600;
 }
+
+/* ── KNX section in detail panel ── */
+.dev-knx-sep {
+  font-size: .46rem;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: #22d3ee;
+  padding: 6px 0 3px;
+  border-top: 1px solid rgba(34,211,238,.2);
+  margin-top: 4px;
+  font-weight: 700;
+}
+
+/* ── KNX Group Object cards ── */
+.dev-knx-go-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dev-knx-go-card {
+  background: rgba(34,211,238,.04);
+  border: 1px solid rgba(34,211,238,.15);
+  border-radius: 6px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dev-knx-go-hdr {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: .52rem;
+}
+
+.dev-knx-go-idx {
+  color: rgba(34,211,238,.6);
+  font-size: .46rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dev-knx-go-name {
+  color: var(--text);
+  font-weight: 600;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dev-knx-go-del {
+  width: 14px;
+  height: 14px;
+  background: rgba(255,95,87,.5);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: .42rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  opacity: .5;
+  transition: opacity .12s;
+}
+.dev-knx-go-del:hover { opacity: 1; }
+
+.dev-knx-go-inp {
+  font-size: .5rem !important;
+  padding: 2px 5px !important;
+}
+
+.dev-knx-go-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dev-knx-go-rlbl {
+  font-size: .46rem;
+  color: var(--dim);
+  flex-shrink: 0;
+  width: 28px;
+}
+
+.dev-knx-go-sel {
+  font-size: .48rem !important;
+  padding: 2px 3px !important;
+  flex: 1;
+}
+
+.dev-knx-go-info {
+  font-size: .44rem;
+  color: rgba(34,211,238,.5);
+  padding-left: 2px;
+}
+
+.dev-knx-go-flags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dev-knx-flag {
+  font-size: .46rem;
+  color: var(--dim);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+}
+
+.dev-knx-flag input[type="checkbox"] {
+  width: 10px;
+  height: 10px;
+  accent-color: #22d3ee;
+}
+
+/* KNX device nodes get a cyan tint */
+.dev-node.device.knx-device {
+  border-color: rgba(34,211,238,.4);
+  background: rgba(34,211,238,.06);
+}
+.dev-node.device.knx-device:hover {
+  border-color: rgba(34,211,238,.7);
+}
