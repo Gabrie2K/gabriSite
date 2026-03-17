@@ -1,0 +1,317 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "knx-device-schema.json",
+  "title": "KNX Virtual Device",
+  "description": "Schema for a virtualized KNX bus device with all standard properties",
+  "type": "object",
+  "required": ["id", "individualAddress", "medium", "groupObjects"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique identifier for this virtual device"
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-readable device name"
+    },
+    "description": {
+      "type": "string"
+    },
+    "manufacturer": {
+      "type": "string",
+      "description": "Manufacturer name, e.g. MDT Technologies"
+    },
+    "manufacturerId": {
+      "type": "string",
+      "pattern": "^0x[0-9A-Fa-f]{4}$",
+      "description": "KNX Association assigned 16-bit manufacturer ID (hex), e.g. 0x000C"
+    },
+    "productRef": {
+      "type": "string",
+      "description": "Manufacturer product reference/order number"
+    },
+    "etsApplicationVersion": {
+      "type": "string",
+      "description": "ETS application program version, e.g. 04.01"
+    },
+    "serialNumber": {
+      "type": "string",
+      "description": "KNX Association assigned unique serial number (hex)"
+    },
+    "medium": {
+      "type": "string",
+      "enum": ["TP", "PL", "RF", "IP"],
+      "description": "Bus medium: Twisted Pair, Powerline, Radio Frequency, or IP"
+    },
+    "individualAddress": {
+      "type": "string",
+      "pattern": "^(1[0-5]|[1-9]|0)\\.(1[0-5]|[1-9]|0)\\.(25[0-5]|2[0-4][0-9]|1[0-9]{2}|[1-9][0-9]|[0-9])$",
+      "description": "Individual address in format Area.Line.Device (e.g. 1.2.5)"
+    },
+    "firmware": {
+      "type": "string",
+      "description": "Firmware version string"
+    },
+    "deviceType": {
+      "type": "string",
+      "enum": [
+        "sensor",
+        "actuator",
+        "sensor_actuator",
+        "system",
+        "gateway",
+        "display",
+        "controller"
+      ]
+    },
+    "functionalBlock": {
+      "type": "string",
+      "enum": [
+        "switch",
+        "dimming",
+        "shutter_blind",
+        "hvac",
+        "scene",
+        "energy",
+        "rgb_color",
+        "audio_video",
+        "security",
+        "time",
+        "generic",
+        "power_supply",
+        "coupler",
+        "router",
+        "gateway"
+      ]
+    },
+    "location": {
+      "type": "object",
+      "properties": {
+        "building": { "type": "string" },
+        "floor": { "type": "integer" },
+        "room": { "type": "string" },
+        "area": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "description": "KNX topology area (0=backbone)"
+        },
+        "line": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 15,
+          "description": "KNX topology line (0=main line)"
+        }
+      }
+    },
+    "groupObjects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["objectIndex", "name", "dpt", "flags", "groupAddresses"],
+        "properties": {
+          "objectIndex": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Object index as defined by device application"
+          },
+          "name": {
+            "type": "string",
+            "description": "Object name, e.g. Switch, BrightnessValue"
+          },
+          "description": { "type": "string" },
+          "dpt": {
+            "type": "string",
+            "description": "Datapoint type ID, e.g. 1.001",
+            "examples": [
+              "1.001", "1.002", "1.007", "1.008",
+              "2.001",
+              "3.007",
+              "5.001", "5.010",
+              "6.001",
+              "7.001",
+              "9.001", "9.002", "9.004", "9.007",
+              "10.001",
+              "11.001",
+              "12.001",
+              "13.010",
+              "14.056",
+              "16.000",
+              "17.001",
+              "18.001",
+              "19.001",
+              "20.102",
+              "232.600"
+            ]
+          },
+          "size": {
+            "type": "integer",
+            "description": "Object size in bits",
+            "enum": [1, 2, 4, 8, 16, 24, 32, 48, 64, 112]
+          },
+          "unit": {
+            "type": "string",
+            "description": "Physical unit of the value, e.g. °C, %, lux, W"
+          },
+          "flags": {
+            "type": "object",
+            "required": ["C", "R", "W", "T", "U"],
+            "properties": {
+              "C": { "type": "boolean", "description": "Communication: object linked to bus" },
+              "R": { "type": "boolean", "description": "Read: value readable from bus" },
+              "W": { "type": "boolean", "description": "Write: value writable from bus" },
+              "T": { "type": "boolean", "description": "Transmit: sends telegram on value change" },
+              "U": { "type": "boolean", "description": "Update: response telegrams update value" },
+              "I": { "type": "boolean", "description": "Read on Init: reads value on power-up" }
+            }
+          },
+          "groupAddresses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^([0-9]|[1-2][0-9]|3[0-1])\\/(([0-9]|[1-7][0-9])\\/(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])))?$"
+            },
+            "description": "Group addresses assigned to this object (first = sending address)"
+          },
+          "value": {
+            "description": "Current value of the object (any type depending on DPT)"
+          },
+          "lastUpdated": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "valueMin": {
+            "description": "Minimum allowed value for this DPT"
+          },
+          "valueMax": {
+            "description": "Maximum allowed value for this DPT"
+          }
+        }
+      }
+    },
+    "parameters": {
+      "type": "object",
+      "description": "Device-specific ETS parameters",
+      "additionalProperties": true,
+      "examples": [
+        {
+          "minBrightness": 1,
+          "maxBrightness": 255,
+          "dimmingTime": 5,
+          "switchOnValue": 255,
+          "behaviorOnPowerReturn": "lastValue",
+          "shortOperationTime": 200,
+          "longOperationTime": 3000,
+          "deadbandHysteresis": 0.5,
+          "setpointDefault": 21.0,
+          "hvacMode": 1
+        }
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": ["online", "offline", "programming", "unknown"],
+      "default": "online"
+    },
+    "busVoltage": {
+      "type": "number",
+      "description": "Measured bus voltage in Volts (nominal 29.8V for TP)",
+      "minimum": 0,
+      "maximum": 35
+    },
+    "powerConsumptionMA": {
+      "type": "number",
+      "description": "Bus current consumption in milliamps"
+    },
+    "lastSeen": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Custom tags for filtering and grouping devices"
+    }
+  },
+
+  "definitions": {
+    "dptDatabase": {
+      "description": "All standard KNX Datapoint Types",
+      "type": "object",
+      "properties": {
+        "1.001": { "name": "Switch", "size": 1, "unit": "", "values": { "0": "Off", "1": "On" } },
+        "1.002": { "name": "Boolean", "size": 1, "unit": "", "values": { "0": "False", "1": "True" } },
+        "1.003": { "name": "Enable", "size": 1, "unit": "", "values": { "0": "Disable", "1": "Enable" } },
+        "1.007": { "name": "Step", "size": 1, "unit": "", "values": { "0": "Decrease", "1": "Increase" } },
+        "1.008": { "name": "UpDown", "size": 1, "unit": "", "values": { "0": "Up", "1": "Down" } },
+        "1.009": { "name": "OpenClose", "size": 1, "unit": "", "values": { "0": "Open", "1": "Close" } },
+        "1.010": { "name": "Start", "size": 1, "unit": "", "values": { "0": "Stop", "1": "Start" } },
+        "1.011": { "name": "State", "size": 1, "unit": "", "values": { "0": "Inactive", "1": "Active" } },
+        "1.017": { "name": "Trigger", "size": 1, "unit": "", "values": { "0": "Trigger 0", "1": "Trigger 1" } },
+        "1.018": { "name": "Occupancy", "size": 1, "unit": "", "values": { "0": "Not occupied", "1": "Occupied" } },
+        "1.019": { "name": "Window/Door", "size": 1, "unit": "", "values": { "0": "Closed", "1": "Open" } },
+        "2.001": { "name": "Switch Control", "size": 2, "unit": "", "range": [0, 3] },
+        "2.002": { "name": "Boolean Control", "size": 2, "unit": "", "range": [0, 3] },
+        "3.007": { "name": "Control Dimming", "size": 4, "unit": "", "range": [0, 15] },
+        "3.008": { "name": "Control Blinds", "size": 4, "unit": "", "range": [0, 15] },
+        "4.001": { "name": "Character ASCII", "size": 8, "unit": "" },
+        "5.001": { "name": "Scaling", "size": 8, "unit": "%", "range": [0, 100] },
+        "5.003": { "name": "Angle", "size": 8, "unit": "°", "range": [0, 360] },
+        "5.004": { "name": "Percent (0..255)", "size": 8, "unit": "%", "range": [0, 255] },
+        "5.010": { "name": "Value 1 Ucount", "size": 8, "unit": "counter", "range": [0, 255] },
+        "6.001": { "name": "Percent V8", "size": 8, "unit": "%", "range": [-128, 127] },
+        "6.010": { "name": "Value 1 Count", "size": 8, "unit": "counter", "range": [-128, 127] },
+        "7.001": { "name": "Value 2 Ucount", "size": 16, "unit": "counter", "range": [0, 65535] },
+        "7.002": { "name": "TimePeriod ms", "size": 16, "unit": "ms", "range": [0, 65535] },
+        "7.003": { "name": "TimePeriod 10ms", "size": 16, "unit": "10ms", "range": [0, 65535] },
+        "7.004": { "name": "TimePeriod 100ms", "size": 16, "unit": "100ms", "range": [0, 65535] },
+        "7.005": { "name": "TimePeriod s", "size": 16, "unit": "s", "range": [0, 65535] },
+        "7.006": { "name": "TimePeriod min", "size": 16, "unit": "min", "range": [0, 65535] },
+        "7.007": { "name": "TimePeriod h", "size": 16, "unit": "h", "range": [0, 65535] },
+        "7.013": { "name": "Lux", "size": 16, "unit": "lux", "range": [0, 65535] },
+        "8.001": { "name": "Value 2 Count", "size": 16, "unit": "counter", "range": [-32768, 32767] },
+        "9.001": { "name": "Temperature", "size": 16, "unit": "°C", "range": [-273.17, 670760.96] },
+        "9.002": { "name": "Temperature Difference", "size": 16, "unit": "K", "range": [-670760.96, 670760.96] },
+        "9.004": { "name": "Illuminance", "size": 16, "unit": "lux", "range": [0, 670760.96] },
+        "9.005": { "name": "Wind Speed", "size": 16, "unit": "m/s", "range": [0, 670760.96] },
+        "9.006": { "name": "Pressure", "size": 16, "unit": "Pa", "range": [0, 670760.96] },
+        "9.007": { "name": "Humidity", "size": 16, "unit": "%", "range": [0, 100] },
+        "9.008": { "name": "Air Quality (ppm)", "size": 16, "unit": "ppm", "range": [0, 670760.96] },
+        "9.010": { "name": "Time (s)", "size": 16, "unit": "s", "range": [-670760.96, 670760.96] },
+        "9.020": { "name": "Voltage", "size": 16, "unit": "mV", "range": [-670760.96, 670760.96] },
+        "9.021": { "name": "Current", "size": 16, "unit": "mA", "range": [-670760.96, 670760.96] },
+        "9.024": { "name": "Power", "size": 16, "unit": "kW", "range": [-670760.96, 670760.96] },
+        "9.025": { "name": "Volume Flow", "size": 16, "unit": "l/h", "range": [-670760.96, 670760.96] },
+        "10.001": { "name": "TimeOfDay", "size": 24, "unit": "HH:MM:SS" },
+        "11.001": { "name": "Date", "size": 24, "unit": "DD/MM/YYYY" },
+        "12.001": { "name": "Value 4 Ucount", "size": 32, "unit": "counter", "range": [0, 4294967295] },
+        "13.001": { "name": "Value 4 Count", "size": 32, "unit": "counter", "range": [-2147483648, 2147483647] },
+        "13.010": { "name": "Active Energy", "size": 32, "unit": "Wh", "range": [-2147483648, 2147483647] },
+        "13.013": { "name": "Active Energy kWh", "size": 32, "unit": "kWh", "range": [-2147483648, 2147483647] },
+        "14.056": { "name": "Power (W)", "size": 32, "unit": "W", "range": [-3.4e38, 3.4e38] },
+        "14.065": { "name": "Temperature (K)", "size": 32, "unit": "K", "range": [-3.4e38, 3.4e38] },
+        "16.000": { "name": "ASCII String", "size": 112, "unit": "text", "maxLength": 14 },
+        "16.001": { "name": "ISO-8859-1 String", "size": 112, "unit": "text", "maxLength": 14 },
+        "17.001": { "name": "Scene Number", "size": 8, "unit": "scene", "range": [0, 63] },
+        "18.001": { "name": "Scene Control", "size": 8, "unit": "scene", "range": [0, 191] },
+        "19.001": { "name": "DateTime", "size": 64, "unit": "datetime" },
+        "20.001": { "name": "SCLO Mode", "size": 8, "unit": "" },
+        "20.002": { "name": "Build ProgramMode", "size": 8, "unit": "" },
+        "20.003": { "name": "Backup Mode", "size": 8, "unit": "" },
+        "20.008": { "name": "HVAC Domein Mode", "size": 8, "unit": "" },
+        "20.011": { "name": "Status Room Setpoint", "size": 8, "unit": "" },
+        "20.102": { "name": "HVAC Mode", "size": 8, "unit": "", "values": { "0": "Auto", "1": "Comfort", "2": "Standby", "3": "Economy", "4": "Building Protection" } },
+        "20.105": { "name": "HVAC Control Mode", "size": 8, "unit": "" },
+        "20.106": { "name": "HVAC Emergency Mode", "size": 8, "unit": "" },
+        "20.107": { "name": "Changeover Mode", "size": 8, "unit": "" },
+        "20.110": { "name": "Valve Mode", "size": 8, "unit": "" },
+        "20.111": { "name": "Damper Mode", "size": 8, "unit": "" },
+        "232.600": { "name": "RGB Value", "size": 24, "unit": "RGB", "fields": ["R(0-255)", "G(0-255)", "B(0-255)"] },
+        "232.601": { "name": "RGBW Value", "size": 32, "unit": "RGBW", "fields": ["R(0-255)", "G(0-255)", "B(0-255)", "W(0-255)"] },
+        "242.600": { "name": "xyY Colour", "size": 48, "unit": "CIE xyY" },
+        "251.600": { "name": "RGBW + Color Temperature", "size": 64, "unit": "" }
+      }
+    }
+  }
+}
