@@ -2,7 +2,7 @@
 /* ═══════════════════════════════════════════════════════════
    DEVICES — Virtualizzazione dispositivi
    Editor visuale per configurazione controller → porte → device
-   Dipende da: window-manager.js (WINS)
+   Dipende da: window-manager.js (WINS), knx-data.js (KNX_*)
    ═══════════════════════════════════════════════════════════ */
 
 // ── catalogo controller ──────────────────────────────────
@@ -59,6 +59,20 @@ const DEV_DEVICES = [
   { model: 'Attuatore',  brand: 'Generico', desc: 'Attuatore custom',           portTypes: ['*'] },
   { model: 'Contatore',  brand: 'Generico', desc: 'Contatore custom',           portTypes: ['*'] },
 ];
+
+// ── Aggiungi KNX devices dal catalogo KNX_DEVICE_TEMPLATES ──
+// (populated at load time from knx-data.js)
+if (typeof KNX_DEVICE_TEMPLATES !== 'undefined') {
+  KNX_DEVICE_TEMPLATES.forEach(t => {
+    DEV_DEVICES.push({
+      model: t.model,
+      brand: (KNX_MANUFACTURERS?.find(m => m.id === t.manufacturer)?.name) || t.manufacturer,
+      desc: t.desc,
+      portTypes: ['KNX'],
+      knxTemplate: t,
+    });
+  });
+}
 
 // ── body HTML ────────────────────────────────────────────
 
@@ -291,11 +305,246 @@ function _devShowDetail(id, node) {
     addField('Descrizione', node.desc, false);
     addField('Indirizzo fisico', node.physAddr || '', true, 'physAddr');
     addField('Indirizzo virtuale', node.virtAddr || '', true, 'virtAddr');
+
+    // ── KNX-specific fields ──
+    if (node.knx) {
+      _devRenderKnxDetail(id, node, body);
+    }
   }
 }
 
 function _devCloseDetail(id) {
   document.getElementById('devdetail' + id)?.classList.remove('open');
+}
+
+// ── KNX detail panel renderer ────────────────────────────
+
+function _devRenderKnxDetail(id, node, body) {
+  const knx = node.knx;
+
+  // separator
+  const sep = document.createElement('div');
+  sep.className = 'dev-knx-sep';
+  sep.textContent = 'KNX';
+  body.appendChild(sep);
+
+  // Individual Address
+  _devKnxField(body, 'Individual Address', knx.individualAddress, val => {
+    knx.individualAddress = val;
+    _devRefreshNodeEl(id, node);
+    _devSave(id);
+  });
+
+  // Medium dropdown
+  _devKnxSelect(body, 'Medium', KNX_MEDIUMS, knx.medium, val => {
+    knx.medium = val; _devSave(id);
+  });
+
+  // Manufacturer dropdown
+  if (typeof KNX_MANUFACTURERS !== 'undefined') {
+    const mfOpts = KNX_MANUFACTURERS.map(m => m.id);
+    const mfLabels = KNX_MANUFACTURERS.map(m => m.name);
+    _devKnxSelect(body, 'Manufacturer', mfOpts, knx.manufacturer, val => {
+      knx.manufacturer = val; _devSave(id);
+    }, mfLabels);
+  }
+
+  // Device Type
+  _devKnxSelect(body, 'Device Type', KNX_DEVICE_TYPES, knx.deviceType, val => {
+    knx.deviceType = val; _devSave(id);
+  });
+
+  // Functional Block
+  _devKnxSelect(body, 'Functional Block', KNX_FUNCTIONAL_BLOCKS, knx.functionalBlock, val => {
+    knx.functionalBlock = val; _devSave(id);
+  });
+
+  // Status
+  _devKnxSelect(body, 'Status', ['online', 'offline', 'programming', 'unknown'], knx.status, val => {
+    knx.status = val; _devSave(id);
+  });
+
+  // ── Group Objects ──
+  const goSep = document.createElement('div');
+  goSep.className = 'dev-knx-sep';
+  goSep.textContent = 'GROUP OBJECTS (' + knx.groupObjects.length + ')';
+  body.appendChild(goSep);
+
+  const goList = document.createElement('div');
+  goList.className = 'dev-knx-go-list';
+  body.appendChild(goList);
+
+  function renderGOs() {
+    goList.innerHTML = '';
+    goSep.textContent = 'GROUP OBJECTS (' + knx.groupObjects.length + ')';
+    knx.groupObjects.forEach((go, idx) => {
+      const card = document.createElement('div');
+      card.className = 'dev-knx-go-card';
+
+      // header with name + delete
+      const hdr = document.createElement('div');
+      hdr.className = 'dev-knx-go-hdr';
+      hdr.innerHTML = `<span class="dev-knx-go-idx">#${go.objectIndex}</span>
+        <span class="dev-knx-go-name">${go.name}</span>`;
+      const delBtn = document.createElement('button');
+      delBtn.className = 'dev-knx-go-del';
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        knx.groupObjects.splice(idx, 1);
+        renderGOs();
+        _devSave(id);
+      });
+      delBtn.addEventListener('mousedown', e => e.stopPropagation());
+      hdr.appendChild(delBtn);
+      card.appendChild(hdr);
+
+      // name input
+      const nameInp = document.createElement('input');
+      nameInp.className = 'dev-detail-inp dev-knx-go-inp';
+      nameInp.value = go.name;
+      nameInp.placeholder = 'Object name';
+      nameInp.addEventListener('input', () => { go.name = nameInp.value; hdr.querySelector('.dev-knx-go-name').textContent = go.name; _devSave(id); });
+      nameInp.addEventListener('mousedown', e => e.stopPropagation());
+      card.appendChild(nameInp);
+
+      // DPT selector
+      const dptRow = document.createElement('div');
+      dptRow.className = 'dev-knx-go-row';
+      const dptLbl = document.createElement('span');
+      dptLbl.className = 'dev-knx-go-rlbl';
+      dptLbl.textContent = 'DPT:';
+      dptRow.appendChild(dptLbl);
+      const dptSel = document.createElement('select');
+      dptSel.className = 'dev-tb-select dev-knx-go-sel';
+      if (typeof KNX_DPT !== 'undefined') {
+        Object.keys(KNX_DPT).forEach(k => {
+          const opt = document.createElement('option');
+          opt.value = k;
+          opt.textContent = k + ' — ' + KNX_DPT[k].name;
+          if (k === go.dpt) opt.selected = true;
+          dptSel.appendChild(opt);
+        });
+      }
+      dptSel.addEventListener('change', () => { go.dpt = dptSel.value; _devSave(id); });
+      dptSel.addEventListener('mousedown', e => e.stopPropagation());
+      dptRow.appendChild(dptSel);
+      card.appendChild(dptRow);
+
+      // DPT info
+      const dptInfo = KNX_DPT?.[go.dpt];
+      if (dptInfo) {
+        const info = document.createElement('div');
+        info.className = 'dev-knx-go-info';
+        info.textContent = (dptInfo.unit ? dptInfo.unit + ' · ' : '') + dptInfo.size + ' bit';
+        card.appendChild(info);
+      }
+
+      // Flags
+      const flagRow = document.createElement('div');
+      flagRow.className = 'dev-knx-go-flags';
+      ['C', 'R', 'W', 'T', 'U'].forEach(f => {
+        const lbl = document.createElement('label');
+        lbl.className = 'dev-knx-flag';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = go.flags?.[f] || false;
+        cb.addEventListener('change', () => {
+          if (!go.flags) go.flags = {};
+          go.flags[f] = cb.checked;
+          _devSave(id);
+        });
+        cb.addEventListener('mousedown', e => e.stopPropagation());
+        lbl.appendChild(cb);
+        lbl.appendChild(document.createTextNode(' ' + f));
+        flagRow.appendChild(lbl);
+      });
+      card.appendChild(flagRow);
+
+      // Group Addresses
+      const gaRow = document.createElement('div');
+      gaRow.className = 'dev-knx-go-row';
+      const gaLbl = document.createElement('span');
+      gaLbl.className = 'dev-knx-go-rlbl';
+      gaLbl.textContent = 'GA:';
+      gaRow.appendChild(gaLbl);
+      const gaInp = document.createElement('input');
+      gaInp.className = 'dev-detail-inp dev-knx-go-inp';
+      gaInp.value = (go.groupAddresses || []).join(', ');
+      gaInp.placeholder = '1/2/3, 1/2/4';
+      gaInp.addEventListener('input', () => {
+        go.groupAddresses = gaInp.value.split(',').map(s => s.trim()).filter(Boolean);
+        _devSave(id);
+      });
+      gaInp.addEventListener('mousedown', e => e.stopPropagation());
+      gaRow.appendChild(gaInp);
+      card.appendChild(gaRow);
+
+      goList.appendChild(card);
+    });
+  }
+
+  renderGOs();
+
+  // Add GO button
+  const addGoBtn = document.createElement('button');
+  addGoBtn.className = 'dev-tb-btn';
+  addGoBtn.textContent = '+ Group Object';
+  addGoBtn.style.marginTop = '4px';
+  addGoBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    knx.groupObjects.push({
+      objectIndex: knx.groupObjects.length,
+      name: 'New Object',
+      dpt: '1.001',
+      flags: { C: true, R: true, W: true, T: false, U: true },
+      groupAddresses: [],
+    });
+    renderGOs();
+    _devSave(id);
+  });
+  addGoBtn.addEventListener('mousedown', e => e.stopPropagation());
+  body.appendChild(addGoBtn);
+}
+
+// ── KNX detail field helpers ─────────────────────────────
+
+function _devKnxField(body, label, value, onChange) {
+  const div = document.createElement('div');
+  div.className = 'dev-detail-field';
+  const lbl = document.createElement('div');
+  lbl.className = 'dev-detail-lbl';
+  lbl.textContent = label;
+  div.appendChild(lbl);
+  const inp = document.createElement('input');
+  inp.className = 'dev-detail-inp';
+  inp.value = value || '';
+  inp.addEventListener('input', () => onChange(inp.value));
+  inp.addEventListener('mousedown', e => e.stopPropagation());
+  div.appendChild(inp);
+  body.appendChild(div);
+}
+
+function _devKnxSelect(body, label, options, currentVal, onChange, labels) {
+  const div = document.createElement('div');
+  div.className = 'dev-detail-field';
+  const lbl = document.createElement('div');
+  lbl.className = 'dev-detail-lbl';
+  lbl.textContent = label;
+  div.appendChild(lbl);
+  const sel = document.createElement('select');
+  sel.className = 'dev-tb-select';
+  options.forEach((opt, i) => {
+    const o = document.createElement('option');
+    o.value = opt;
+    o.textContent = labels ? labels[i] : opt;
+    if (opt === currentVal) o.selected = true;
+    sel.appendChild(o);
+  });
+  sel.addEventListener('change', () => onChange(sel.value));
+  sel.addEventListener('mousedown', e => e.stopPropagation());
+  div.appendChild(sel);
+  body.appendChild(div);
 }
 
 // ── refresh a single node element ────────────────────────
@@ -322,8 +571,13 @@ function _devRefreshNodeEl(id, node) {
     if (l) l.textContent = node.label || '';
     if (a) {
       let txt = '';
-      if (node.physAddr) txt += 'Fisico: ' + node.physAddr;
-      if (node.virtAddr) txt += (txt ? '\n' : '') + 'Virtuale: ' + node.virtAddr;
+      if (node.knx) {
+        txt = node.knx.individualAddress || '';
+        if (node.knx.groupObjects?.length) txt += (txt ? '\n' : '') + node.knx.groupObjects.length + ' GO';
+      } else {
+        if (node.physAddr) txt += 'Fisico: ' + node.physAddr;
+        if (node.virtAddr) txt += (txt ? '\n' : '') + 'Virtuale: ' + node.virtAddr;
+      }
       a.textContent = txt || '—';
     }
   }
@@ -337,7 +591,7 @@ function _devBuildNodeEl(id, node) {
   const canvas = document.getElementById('devcvs' + id);
 
   const el = document.createElement('div');
-  el.className = 'dev-node ' + node.ntype;
+  el.className = 'dev-node ' + node.ntype + (node.knx ? ' knx-device' : '');
   el.id = 'dnode' + id + '_' + node.id;
   el.style.left = node.x + 'px';
   el.style.top  = node.y + 'px';
@@ -370,8 +624,13 @@ function _devBuildNodeEl(id, node) {
       <div class="dev-port" data-port="left"></div>`;
   } else if (node.ntype === 'device') {
     let addrTxt = '';
-    if (node.physAddr) addrTxt += 'Fisico: ' + node.physAddr;
-    if (node.virtAddr) addrTxt += (addrTxt ? '\n' : '') + 'Virtuale: ' + node.virtAddr;
+    if (node.knx) {
+      addrTxt = node.knx.individualAddress || '';
+      if (node.knx.groupObjects?.length) addrTxt += (addrTxt ? '\n' : '') + node.knx.groupObjects.length + ' GO';
+    } else {
+      if (node.physAddr) addrTxt += 'Fisico: ' + node.physAddr;
+      if (node.virtAddr) addrTxt += (addrTxt ? '\n' : '') + 'Virtuale: ' + node.virtAddr;
+    }
     el.innerHTML = `
       <div class="dev-node-devmodel">${node.model}</div>
       <div class="dev-node-devlbl">${node.label || ''}</div>
@@ -586,6 +845,25 @@ function _devAddDevice(id, model) {
     x: 480 + Math.random() * Math.max(60, (cr?.width || 400) - 560),
     y: 60 + Math.random() * Math.max(100, (cr?.height || 300) - 200),
   };
+  // KNX-specific init from template
+  if (cat.knxTemplate) {
+    const t = cat.knxTemplate;
+    node.knx = {
+      individualAddress: '1.1.1',
+      medium: 'TP',
+      manufacturer: t.manufacturer,
+      deviceType: t.deviceType,
+      functionalBlock: t.functionalBlock,
+      groupObjects: (t.groupObjects || []).map((go, i) => ({
+        objectIndex: i,
+        name: go.name,
+        dpt: go.dpt,
+        flags: { ...go.flags },
+        groupAddresses: [],
+      })),
+      status: 'online',
+    };
+  }
   data.nodes.push(node);
   _devBuildNodeEl(id, node);
   _devUpdateCount(id);
