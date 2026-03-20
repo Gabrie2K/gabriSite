@@ -1,118 +1,224 @@
-/* ═══════════════════════════════════════════════════════════
-   W-MAP — Vista Italia hub-spoke / Matrix rosso
-   ═══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════
+   W-MAP — Mappa geografica Italia SVG
+   Stesso stile del tab Mappa (map.css)
+   ══════════════════════════════════════════ */
 
 .wmap-wrap {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
   position: relative;
-  width: 100%;
-  height: 100%;
-  background: #000;
+}
+
+/* ── Pannello sinistro (info regione/provincia) ── */
+.wmap-left {
+  width: 196px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  background: rgba(6, 9, 18, .92);
   overflow: hidden;
 }
 
-/* Canvas matrix rain — strato base */
-.wmap-canvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* UI overlay — sopra il canvas */
-.wmap-ui {
-  position: absolute;
-  inset: 0;
+.wmap-info-top {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 10px 12px;
   display: flex;
   flex-direction: column;
-  pointer-events: none;
+  gap: 0;
 }
 
-/* Breadcrumb */
-.wmap-breadcrumb {
-  flex-shrink: 0;
-  padding: 5px 14px;
+.wmap-info-top::-webkit-scrollbar { width: 3px; }
+.wmap-info-top::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* Suggerimento iniziale */
+.wmap-info-hint {
   font-family: 'Space Mono', monospace;
-  font-size: .55rem;
-  letter-spacing: .1em;
-  color: #ff3300;
-  background: rgba(0, 0, 0, 0.6);
-  border-bottom: 1px solid #2a0000;
-  pointer-events: none;
+  font-size: .58rem;
+  color: var(--dim);
+  line-height: 1.7;
+  padding: 8px 0 4px;
 }
 
-/* Area hub-spoke */
-.wmap-hub {
+/* Contenuto info (regione o provincia) */
+.wmap-info-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.wmap-info-name {
+  font-family: 'Syne', sans-serif;
+  font-size: .82rem;
+  font-weight: 700;
+  color: var(--text);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
+.wmap-info-cap {
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  color: var(--dim);
+  margin-bottom: 4px;
+}
+
+.wmap-info-cap strong {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.wmap-info-sec {
+  font-family: 'Space Mono', monospace;
+  font-size: .54rem;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin: 8px 0 5px;
+}
+
+.wmap-info-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+}
+
+.wmap-info-item {
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  color: var(--text);
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(99, 179, 255, .03);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.wmap-info-prov {
+  color: var(--text);
+}
+
+.wmap-info-subcap {
+  font-size: .5rem;
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+/* Link "↩ Regione" cliccabile */
+.wmap-info-region-back {
+  cursor: pointer;
+  color: var(--accent) !important;
+  transition: opacity .15s;
+}
+
+.wmap-info-region-back:hover { opacity: .75; }
+
+.wmap-info-hint-small {
+  font-family: 'Space Mono', monospace;
+  font-size: .5rem;
+  color: var(--dim);
+  margin-top: 10px;
+  line-height: 1.6;
+}
+
+/* ── Lato destro: mappa SVG ── */
+.wmap-right {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Topbar con breadcrumb e bottone back */
+.wmap-topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 12px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(6, 9, 18, .7);
+}
+
+.wmap-breadcrumb {
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  color: var(--accent);
+  letter-spacing: .1em;
+  flex: 1;
+}
+
+.wmap-back-btn {
+  padding: 3px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: rgba(99, 179, 255, .06);
+  color: var(--accent);
+  font-family: 'Space Mono', monospace;
+  font-size: .58rem;
+  cursor: pointer;
+  transition: all .15s;
+  flex-shrink: 0;
+}
+
+.wmap-back-btn:hover {
+  background: rgba(99, 179, 255, .16);
+  border-color: rgba(99, 179, 255, .5);
+}
+
+/* Area SVG */
+.wmap-area {
   flex: 1;
   position: relative;
-  pointer-events: none;
+  overflow: hidden;
+  background: var(--bg);
 }
 
-/* SVG linee di connessione */
 .wmap-svg {
-  position: absolute;
-  inset: 0;
+  display: block;
   width: 100%;
   height: 100%;
-  pointer-events: none;
 }
 
-/* Nodo generico */
-.wmap-node {
-  position: absolute;
-  transform: translate(-50%, -50%);
-  pointer-events: auto;
-  cursor: default;
-  text-align: center;
-  user-select: none;
-}
-
-.wmap-node.clickable {
+/* Regione (hover gestito inline via JS) */
+.wmap-region,
+.wmap-province {
   cursor: pointer;
 }
 
-/* Box testo del nodo */
-.wmap-node-box {
-  padding: 3px 8px;
-  border: 1px solid #4a0000;
-  background: rgba(0, 0, 0, 0.82);
-  color: #bb3311;
+/* Label testo sulle regioni/province */
+.wmap-label {
   font-family: 'Space Mono', monospace;
-  font-size: .5rem;
+  font-size: 9px;
+  fill: rgba(255, 255, 255, .85);
+  text-anchor: middle;
+  dominant-baseline: middle;
   letter-spacing: .04em;
-  white-space: nowrap;
-  transition: border-color .15s, color .15s, background .15s, box-shadow .15s;
 }
 
-.wmap-node.clickable:hover .wmap-node-box {
-  border-color: #cc2200;
-  color: #ff7755;
-  background: rgba(40, 0, 0, 0.88);
-  box-shadow: 0 0 8px rgba(180, 30, 0, 0.5);
+/* Loading overlay */
+.wmap-loading {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(7, 9, 15, .7);
+  z-index: 4;
 }
 
-/* Nodo centrale — più grande e luminoso */
-.wmap-node-box.center {
-  border-color: #aa2200;
-  color: #ffaa88;
-  font-weight: 700;
-  font-size: .58rem;
-  background: rgba(20, 0, 0, 0.92);
-  box-shadow: 0 0 14px rgba(200, 40, 0, 0.55);
-}
-
-.wmap-node.clickable:hover .wmap-node-box.center {
-  border-color: #ff5522;
-  color: #ffddcc;
-  box-shadow: 0 0 20px rgba(255, 60, 0, 0.65);
-}
-
-/* Sottotitolo del nodo (capoluogo / cap. prov.) */
-.wmap-node-sub {
+.wmap-loading-text {
   font-family: 'Space Mono', monospace;
-  font-size: .42rem;
-  color: #551100;
-  margin-top: 2px;
-  white-space: nowrap;
-  pointer-events: none;
+  font-size: .65rem;
+  color: var(--dim);
 }
