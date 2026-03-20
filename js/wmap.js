@@ -1,375 +1,513 @@
 'use strict';
 /* ═══════════════════════════════════════════════════════════
-   W-MAP — Vista Italia hub-spoke con sfondo Matrix rosso
-   Fase 1: struttura + dati   Fase 2: dati Italia hardcoded
-   Fase 3: albero hub-spoke navigabile (Italia→Regione→Provincia→Città)
-   Autocontenuto: nessuna dipendenza esterna.
+   W-MAP — Mappa geografica Italia SVG con drill-down
+   Italia → Regione (province colorate) → info provincia
+   Dati: GeoJSON openpolis/geojson-italy via jsDelivr CDN
+   Dipende da: window-manager.js (WINS)
    ═══════════════════════════════════════════════════════════ */
 
-// ─── Fase 2 — Dati Italia (hardcoded, no API) ────────────────
+// ─── Cache GeoJSON (caricati lazy, modulo-scoped) ─────────────
+let _WMAP_REGIONS   = null;   // GeoJSON regioni (caricato all'apertura)
+let _WMAP_PROVINCES = null;   // GeoJSON province (caricato al click)
+
+const _WMAP_URL_REG = 'https://cdn.jsdelivr.net/gh/openpolis/geojson-italy@master/geojson/limits_IT_regions.geojson';
+const _WMAP_URL_PRO = 'https://cdn.jsdelivr.net/gh/openpolis/geojson-italy@master/geojson/limits_IT_provinces.geojson';
+
+// ─── Palette 20 colori regioni (distinguibili su sfondo scuro) ─
+const WMAP_REG_COLORS = [
+  '#1f5c96','#1a8050','#6a3a9a','#9a5e20','#1a8090',
+  '#9a2050','#4a8a20','#9a6a20','#8a2820','#206a2a',
+  '#5a1a8a','#8a1a6a','#1a6a8a','#7a7a18','#4a1a40',
+  '#1a5a3a','#3a5a18','#5a2a18','#2a4a9a','#5a3a18',
+];
+
+// ─── Normalizzazione nomi GeoJSON → nome breve UI ─────────────
+const _WMAP_REG_ALIAS = {
+  "Valle d'Aosta/Vallée d'Aoste": "Valle d'Aosta",
+  "Trentino-Alto Adige/Südtirol": "Trentino-A.A.",
+  "Friuli-Venezia Giulia":         "Friuli-V.G.",
+};
+
+// ─── Dati statici (per il pannello info) ─────────────────────
 const ITALIA_DATA = {
-  nome: 'Italia',
   regioni: [
-    { id:'pie', nome:'Piemonte',        cap:'Torino',     province:[
-      {nome:'Torino',        cap:'Torino',       citta:['Torino','Moncalieri','Pinerolo','Collegno','Nichelino']},
-      {nome:'Vercelli',      cap:'Vercelli',     citta:['Vercelli']},
-      {nome:'Novara',        cap:'Novara',       citta:['Novara']},
-      {nome:'Cuneo',         cap:'Cuneo',        citta:['Cuneo','Alba','Savigliano','Fossano']},
-      {nome:'Asti',          cap:'Asti',         citta:['Asti']},
-      {nome:'Alessandria',   cap:'Alessandria',  citta:['Alessandria','Casale M.','Novi Ligure']},
-      {nome:'Biella',        cap:'Biella',       citta:['Biella']},
-      {nome:'VCO',           cap:'Verbania',     citta:['Verbania','Domodossola']},
+    { geo:"Piemonte",           cap:"Torino",    province:[
+      {nome:"Torino",         cap:"Torino",   citta:["Torino","Moncalieri","Pinerolo","Nichelino"]},
+      {nome:"Vercelli",       cap:"Vercelli", citta:["Vercelli"]},
+      {nome:"Novara",         cap:"Novara",   citta:["Novara"]},
+      {nome:"Cuneo",          cap:"Cuneo",    citta:["Cuneo","Alba","Fossano"]},
+      {nome:"Asti",           cap:"Asti",     citta:["Asti"]},
+      {nome:"Alessandria",    cap:"Alessandria", citta:["Alessandria","Casale M."]},
+      {nome:"Biella",         cap:"Biella",   citta:["Biella"]},
+      {nome:"VCO",            cap:"Verbania", citta:["Verbania","Domodossola"]},
     ]},
-    { id:'vda', nome:"Valle d'Aosta",   cap:'Aosta',      province:[
-      {nome:'Aosta',         cap:'Aosta',        citta:['Aosta']},
+    { geo:"Valle d'Aosta/Vallée d'Aoste", cap:"Aosta", province:[
+      {nome:"Aosta", cap:"Aosta", citta:["Aosta"]},
     ]},
-    { id:'lom', nome:'Lombardia',       cap:'Milano',     province:[
-      {nome:'Milano',        cap:'Milano',       citta:['Milano','Sesto S.G.','Cinisello B.','Rho','Corsico']},
-      {nome:'Bergamo',       cap:'Bergamo',      citta:['Bergamo','Treviglio','Dalmine','Seriate']},
-      {nome:'Brescia',       cap:'Brescia',      citta:['Brescia','Desenzano','Chiari']},
-      {nome:'Como',          cap:'Como',         citta:['Como','Cantù','Mariano C.']},
-      {nome:'Cremona',       cap:'Cremona',      citta:['Cremona','Crema']},
-      {nome:'Lecco',         cap:'Lecco',        citta:['Lecco']},
-      {nome:'Lodi',          cap:'Lodi',         citta:['Lodi']},
-      {nome:'Mantova',       cap:'Mantova',      citta:['Mantova']},
-      {nome:'Monza-Brianza', cap:'Monza',        citta:['Monza','Seregno','Desio','Cesano M.']},
-      {nome:'Pavia',         cap:'Pavia',        citta:['Pavia','Vigevano']},
-      {nome:'Sondrio',       cap:'Sondrio',      citta:['Sondrio']},
-      {nome:'Varese',        cap:'Varese',       citta:['Varese','Busto A.','Gallarate','Saronno']},
+    { geo:"Lombardia",          cap:"Milano",   province:[
+      {nome:"Milano",         cap:"Milano",    citta:["Milano","Sesto S.G.","Cinisello B.","Rho"]},
+      {nome:"Bergamo",        cap:"Bergamo",   citta:["Bergamo","Treviglio","Dalmine"]},
+      {nome:"Brescia",        cap:"Brescia",   citta:["Brescia","Desenzano"]},
+      {nome:"Como",           cap:"Como",      citta:["Como","Cantù"]},
+      {nome:"Cremona",        cap:"Cremona",   citta:["Cremona","Crema"]},
+      {nome:"Lecco",          cap:"Lecco",     citta:["Lecco"]},
+      {nome:"Lodi",           cap:"Lodi",      citta:["Lodi"]},
+      {nome:"Mantova",        cap:"Mantova",   citta:["Mantova"]},
+      {nome:"Monza-Brianza",  cap:"Monza",     citta:["Monza","Seregno","Desio"]},
+      {nome:"Pavia",          cap:"Pavia",     citta:["Pavia","Vigevano"]},
+      {nome:"Sondrio",        cap:"Sondrio",   citta:["Sondrio"]},
+      {nome:"Varese",         cap:"Varese",    citta:["Varese","Busto A.","Gallarate"]},
     ]},
-    { id:'taa', nome:'Trentino-A.A.',   cap:'Trento',     province:[
-      {nome:'Trento',        cap:'Trento',       citta:['Trento','Rovereto']},
-      {nome:'Bolzano',       cap:'Bolzano',      citta:['Bolzano','Merano','Bressanone']},
+    { geo:"Trentino-Alto Adige/Südtirol", cap:"Trento", province:[
+      {nome:"Trento",  cap:"Trento",  citta:["Trento","Rovereto"]},
+      {nome:"Bolzano", cap:"Bolzano", citta:["Bolzano","Merano","Bressanone"]},
     ]},
-    { id:'ven', nome:'Veneto',          cap:'Venezia',    province:[
-      {nome:'Venezia',       cap:'Venezia',      citta:['Venezia','Mestre','Chioggia']},
-      {nome:'Padova',        cap:'Padova',       citta:['Padova','Abano T.']},
-      {nome:'Vicenza',       cap:'Vicenza',      citta:['Vicenza','Bassano del G.','Schio']},
-      {nome:'Verona',        cap:'Verona',       citta:['Verona','Legnago','Villafranca']},
-      {nome:'Treviso',       cap:'Treviso',      citta:['Treviso','Vittorio V.','Castelfranco V.']},
-      {nome:'Belluno',       cap:'Belluno',      citta:['Belluno','Feltre']},
-      {nome:'Rovigo',        cap:'Rovigo',       citta:['Rovigo','Adria']},
+    { geo:"Veneto",             cap:"Venezia",  province:[
+      {nome:"Venezia",  cap:"Venezia",  citta:["Venezia","Mestre","Chioggia"]},
+      {nome:"Padova",   cap:"Padova",   citta:["Padova"]},
+      {nome:"Vicenza",  cap:"Vicenza",  citta:["Vicenza","Bassano del G."]},
+      {nome:"Verona",   cap:"Verona",   citta:["Verona"]},
+      {nome:"Treviso",  cap:"Treviso",  citta:["Treviso","Vittorio V."]},
+      {nome:"Belluno",  cap:"Belluno",  citta:["Belluno"]},
+      {nome:"Rovigo",   cap:"Rovigo",   citta:["Rovigo"]},
     ]},
-    { id:'fvg', nome:'Friuli-V.G.',     cap:'Trieste',    province:[
-      {nome:'Trieste',       cap:'Trieste',      citta:['Trieste']},
-      {nome:'Udine',         cap:'Udine',        citta:['Udine']},
-      {nome:'Pordenone',     cap:'Pordenone',    citta:['Pordenone']},
-      {nome:'Gorizia',       cap:'Gorizia',      citta:['Gorizia','Monfalcone']},
+    { geo:"Friuli-Venezia Giulia", cap:"Trieste", province:[
+      {nome:"Trieste",    cap:"Trieste",    citta:["Trieste"]},
+      {nome:"Udine",      cap:"Udine",      citta:["Udine"]},
+      {nome:"Pordenone",  cap:"Pordenone",  citta:["Pordenone"]},
+      {nome:"Gorizia",    cap:"Gorizia",    citta:["Gorizia","Monfalcone"]},
     ]},
-    { id:'lig', nome:'Liguria',         cap:'Genova',     province:[
-      {nome:'Genova',        cap:'Genova',       citta:['Genova']},
-      {nome:'Savona',        cap:'Savona',       citta:['Savona','Albenga']},
-      {nome:'La Spezia',     cap:'La Spezia',    citta:['La Spezia']},
-      {nome:'Imperia',       cap:'Imperia',      citta:['Imperia','Sanremo']},
+    { geo:"Liguria",            cap:"Genova",   province:[
+      {nome:"Genova",    cap:"Genova",    citta:["Genova"]},
+      {nome:"Savona",    cap:"Savona",    citta:["Savona","Albenga"]},
+      {nome:"La Spezia", cap:"La Spezia", citta:["La Spezia"]},
+      {nome:"Imperia",   cap:"Imperia",   citta:["Imperia","Sanremo"]},
     ]},
-    { id:'emr', nome:'Emilia-Romagna',  cap:'Bologna',    province:[
-      {nome:'Bologna',       cap:'Bologna',      citta:['Bologna','Imola','Casalecchio']},
-      {nome:'Ferrara',       cap:'Ferrara',      citta:['Ferrara','Copparo']},
-      {nome:'Forlì-Cesena',  cap:'Forlì',        citta:['Forlì','Cesena','Cesenatico']},
-      {nome:'Modena',        cap:'Modena',       citta:['Modena','Carpi','Sassuolo']},
-      {nome:'Parma',         cap:'Parma',        citta:['Parma','Fidenza']},
-      {nome:'Piacenza',      cap:'Piacenza',     citta:['Piacenza']},
-      {nome:'Ravenna',       cap:'Ravenna',      citta:['Ravenna','Faenza','Lugo']},
-      {nome:'Reggio E.',     cap:'Reggio E.',    citta:['Reggio E.','Correggio','Scandiano']},
-      {nome:'Rimini',        cap:'Rimini',       citta:['Rimini','Riccione','Cattolica']},
+    { geo:"Emilia-Romagna",     cap:"Bologna",  province:[
+      {nome:"Bologna",       cap:"Bologna",   citta:["Bologna","Imola"]},
+      {nome:"Ferrara",       cap:"Ferrara",   citta:["Ferrara"]},
+      {nome:"Forlì-Cesena",  cap:"Forlì",    citta:["Forlì","Cesena"]},
+      {nome:"Modena",        cap:"Modena",    citta:["Modena","Carpi","Sassuolo"]},
+      {nome:"Parma",         cap:"Parma",     citta:["Parma"]},
+      {nome:"Piacenza",      cap:"Piacenza",  citta:["Piacenza"]},
+      {nome:"Ravenna",       cap:"Ravenna",   citta:["Ravenna","Faenza"]},
+      {nome:"Reggio E.",     cap:"Reggio E.", citta:["Reggio E.","Correggio"]},
+      {nome:"Rimini",        cap:"Rimini",    citta:["Rimini","Riccione"]},
     ]},
-    { id:'tos', nome:'Toscana',         cap:'Firenze',    province:[
-      {nome:'Firenze',       cap:'Firenze',      citta:['Firenze','Scandicci','Sesto F.no']},
-      {nome:'Arezzo',        cap:'Arezzo',       citta:['Arezzo']},
-      {nome:'Grosseto',      cap:'Grosseto',     citta:['Grosseto']},
-      {nome:'Livorno',       cap:'Livorno',      citta:['Livorno','Piombino']},
-      {nome:'Lucca',         cap:'Lucca',        citta:['Lucca','Viareggio']},
-      {nome:'Massa-Carrara', cap:'Massa',        citta:['Massa','Carrara']},
-      {nome:'Pisa',          cap:'Pisa',         citta:['Pisa','Pontedera']},
-      {nome:'Pistoia',       cap:'Pistoia',      citta:['Pistoia','Monsummano T.']},
-      {nome:'Prato',         cap:'Prato',        citta:['Prato']},
-      {nome:'Siena',         cap:'Siena',        citta:['Siena','Poggibonsi']},
+    { geo:"Toscana",            cap:"Firenze",  province:[
+      {nome:"Firenze",       cap:"Firenze",  citta:["Firenze","Scandicci"]},
+      {nome:"Arezzo",        cap:"Arezzo",   citta:["Arezzo"]},
+      {nome:"Grosseto",      cap:"Grosseto", citta:["Grosseto"]},
+      {nome:"Livorno",       cap:"Livorno",  citta:["Livorno"]},
+      {nome:"Lucca",         cap:"Lucca",    citta:["Lucca","Viareggio"]},
+      {nome:"Massa-Carrara", cap:"Massa",    citta:["Massa","Carrara"]},
+      {nome:"Pisa",          cap:"Pisa",     citta:["Pisa"]},
+      {nome:"Pistoia",       cap:"Pistoia",  citta:["Pistoia"]},
+      {nome:"Prato",         cap:"Prato",    citta:["Prato"]},
+      {nome:"Siena",         cap:"Siena",    citta:["Siena"]},
     ]},
-    { id:'umb', nome:'Umbria',          cap:'Perugia',    province:[
-      {nome:'Perugia',       cap:'Perugia',      citta:['Perugia','Foligno','Città di C.','Gubbio']},
-      {nome:'Terni',         cap:'Terni',        citta:['Terni','Orvieto']},
+    { geo:"Umbria",             cap:"Perugia",  province:[
+      {nome:"Perugia", cap:"Perugia", citta:["Perugia","Foligno"]},
+      {nome:"Terni",   cap:"Terni",   citta:["Terni"]},
     ]},
-    { id:'mar', nome:'Marche',          cap:'Ancona',     province:[
-      {nome:'Ancona',        cap:'Ancona',       citta:['Ancona','Senigallia','Jesi']},
-      {nome:'Ascoli P.',     cap:'Ascoli P.',    citta:['Ascoli Piceno','San Benedetto T.']},
-      {nome:'Fermo',         cap:'Fermo',        citta:['Fermo','Porto San Giorgio']},
-      {nome:'Macerata',      cap:'Macerata',     citta:['Macerata','Civitanova M.']},
-      {nome:'Pesaro-Urbino', cap:'Pesaro',       citta:['Pesaro','Fano','Urbino']},
+    { geo:"Marche",             cap:"Ancona",   province:[
+      {nome:"Ancona",        cap:"Ancona",    citta:["Ancona","Senigallia"]},
+      {nome:"Ascoli P.",     cap:"Ascoli P.", citta:["Ascoli Piceno"]},
+      {nome:"Fermo",         cap:"Fermo",     citta:["Fermo"]},
+      {nome:"Macerata",      cap:"Macerata",  citta:["Macerata","Civitanova M."]},
+      {nome:"Pesaro-Urbino", cap:"Pesaro",    citta:["Pesaro","Fano"]},
     ]},
-    { id:'laz', nome:'Lazio',           cap:'Roma',       province:[
-      {nome:'Roma',          cap:'Roma',         citta:['Roma','Guidonia','Fiumicino','Tivoli','Pomezia']},
-      {nome:'Frosinone',     cap:'Frosinone',    citta:['Frosinone','Cassino','Alatri']},
-      {nome:'Latina',        cap:'Latina',       citta:['Latina','Aprilia','Terracina']},
-      {nome:'Rieti',         cap:'Rieti',        citta:['Rieti']},
-      {nome:'Viterbo',       cap:'Viterbo',      citta:['Viterbo']},
+    { geo:"Lazio",              cap:"Roma",     province:[
+      {nome:"Roma",      cap:"Roma",      citta:["Roma","Guidonia","Fiumicino","Tivoli"]},
+      {nome:"Frosinone", cap:"Frosinone", citta:["Frosinone","Cassino"]},
+      {nome:"Latina",    cap:"Latina",    citta:["Latina","Aprilia"]},
+      {nome:"Rieti",     cap:"Rieti",     citta:["Rieti"]},
+      {nome:"Viterbo",   cap:"Viterbo",   citta:["Viterbo"]},
     ]},
-    { id:'abr', nome:'Abruzzo',         cap:"L'Aquila",   province:[
-      {nome:"L'Aquila",      cap:"L'Aquila",     citta:["L'Aquila"]},
-      {nome:'Chieti',        cap:'Chieti',       citta:['Chieti','Lanciano','Vasto']},
-      {nome:'Pescara',       cap:'Pescara',      citta:['Pescara','Montesilvano']},
-      {nome:'Teramo',        cap:'Teramo',       citta:['Teramo']},
+    { geo:"Abruzzo",            cap:"L'Aquila", province:[
+      {nome:"L'Aquila", cap:"L'Aquila", citta:["L'Aquila"]},
+      {nome:"Chieti",   cap:"Chieti",   citta:["Chieti","Lanciano","Vasto"]},
+      {nome:"Pescara",  cap:"Pescara",  citta:["Pescara","Montesilvano"]},
+      {nome:"Teramo",   cap:"Teramo",   citta:["Teramo"]},
     ]},
-    { id:'mol', nome:'Molise',          cap:'Campobasso', province:[
-      {nome:'Campobasso',    cap:'Campobasso',   citta:['Campobasso','Termoli']},
-      {nome:'Isernia',       cap:'Isernia',      citta:['Isernia']},
+    { geo:"Molise",             cap:"Campobasso", province:[
+      {nome:"Campobasso", cap:"Campobasso", citta:["Campobasso","Termoli"]},
+      {nome:"Isernia",    cap:"Isernia",    citta:["Isernia"]},
     ]},
-    { id:'cam', nome:'Campania',        cap:'Napoli',     province:[
-      {nome:'Napoli',        cap:'Napoli',       citta:['Napoli','Giugliano','Torre del G.','Castellammare']},
-      {nome:'Avellino',      cap:'Avellino',     citta:['Avellino','Ariano I.']},
-      {nome:'Benevento',     cap:'Benevento',    citta:['Benevento']},
-      {nome:'Caserta',       cap:'Caserta',      citta:['Caserta','Aversa','Marcianise']},
-      {nome:'Salerno',       cap:'Salerno',      citta:['Salerno','Battipaglia','Cava dei T.']},
+    { geo:"Campania",           cap:"Napoli",   province:[
+      {nome:"Napoli",    cap:"Napoli",    citta:["Napoli","Giugliano","Castellammare"]},
+      {nome:"Avellino",  cap:"Avellino",  citta:["Avellino"]},
+      {nome:"Benevento", cap:"Benevento", citta:["Benevento"]},
+      {nome:"Caserta",   cap:"Caserta",   citta:["Caserta","Aversa"]},
+      {nome:"Salerno",   cap:"Salerno",   citta:["Salerno","Battipaglia"]},
     ]},
-    { id:'pug', nome:'Puglia',          cap:'Bari',       province:[
-      {nome:'Bari',          cap:'Bari',         citta:['Bari','Altamura','Molfetta','Bitonto']},
-      {nome:'BAT',           cap:'Andria',       citta:['Andria','Barletta','Trani']},
-      {nome:'Brindisi',      cap:'Brindisi',     citta:['Brindisi','Francavilla F.','Fasano']},
-      {nome:'Foggia',        cap:'Foggia',       citta:['Foggia','Manfredonia','Cerignola']},
-      {nome:'Lecce',         cap:'Lecce',        citta:['Lecce','Surbo','Galatina']},
-      {nome:'Taranto',       cap:'Taranto',      citta:['Taranto','Martina F.','Massafra']},
+    { geo:"Puglia",             cap:"Bari",     province:[
+      {nome:"Bari",    cap:"Bari",    citta:["Bari","Altamura","Molfetta"]},
+      {nome:"BAT",     cap:"Andria",  citta:["Andria","Barletta","Trani"]},
+      {nome:"Brindisi",cap:"Brindisi",citta:["Brindisi"]},
+      {nome:"Foggia",  cap:"Foggia",  citta:["Foggia","Manfredonia"]},
+      {nome:"Lecce",   cap:"Lecce",   citta:["Lecce"]},
+      {nome:"Taranto", cap:"Taranto", citta:["Taranto"]},
     ]},
-    { id:'bas', nome:'Basilicata',      cap:'Potenza',    province:[
-      {nome:'Potenza',       cap:'Potenza',      citta:['Potenza','Melfi']},
-      {nome:'Matera',        cap:'Matera',       citta:['Matera','Pisticci']},
+    { geo:"Basilicata",         cap:"Potenza",  province:[
+      {nome:"Potenza", cap:"Potenza", citta:["Potenza"]},
+      {nome:"Matera",  cap:"Matera",  citta:["Matera"]},
     ]},
-    { id:'cal', nome:'Calabria',        cap:'Catanzaro',  province:[
-      {nome:'Catanzaro',     cap:'Catanzaro',    citta:['Catanzaro','Lamezia T.']},
-      {nome:'Cosenza',       cap:'Cosenza',      citta:['Cosenza','Rende','Castrovillari']},
-      {nome:'Crotone',       cap:'Crotone',      citta:['Crotone']},
-      {nome:'Reggio C.',     cap:'Reggio C.',    citta:['Reggio Calabria']},
-      {nome:'Vibo V.',       cap:'Vibo V.',      citta:['Vibo Valentia']},
+    { geo:"Calabria",           cap:"Catanzaro",province:[
+      {nome:"Catanzaro",  cap:"Catanzaro",  citta:["Catanzaro","Lamezia T."]},
+      {nome:"Cosenza",    cap:"Cosenza",    citta:["Cosenza","Rende"]},
+      {nome:"Crotone",    cap:"Crotone",    citta:["Crotone"]},
+      {nome:"Reggio C.",  cap:"Reggio C.",  citta:["Reggio Calabria"]},
+      {nome:"Vibo V.",    cap:"Vibo V.",    citta:["Vibo Valentia"]},
     ]},
-    { id:'sic', nome:'Sicilia',         cap:'Palermo',    province:[
-      {nome:'Palermo',       cap:'Palermo',      citta:['Palermo','Bagheria','Monreale']},
-      {nome:'Agrigento',     cap:'Agrigento',    citta:['Agrigento']},
-      {nome:'Caltanissetta', cap:'Caltanissetta',citta:['Caltanissetta','Gela']},
-      {nome:'Catania',       cap:'Catania',      citta:['Catania','Acireale','Adrano']},
-      {nome:'Enna',          cap:'Enna',         citta:['Enna']},
-      {nome:'Messina',       cap:'Messina',      citta:['Messina','Milazzo']},
-      {nome:'Ragusa',        cap:'Ragusa',       citta:['Ragusa','Modica','Vittoria']},
-      {nome:'Siracusa',      cap:'Siracusa',     citta:['Siracusa','Augusta','Noto']},
-      {nome:'Trapani',       cap:'Trapani',      citta:['Trapani','Marsala','Alcamo','Mazara']},
+    { geo:"Sicilia",            cap:"Palermo",  province:[
+      {nome:"Palermo",      cap:"Palermo",      citta:["Palermo","Bagheria"]},
+      {nome:"Agrigento",    cap:"Agrigento",    citta:["Agrigento"]},
+      {nome:"Caltanissetta",cap:"Caltanissetta",citta:["Caltanissetta","Gela"]},
+      {nome:"Catania",      cap:"Catania",      citta:["Catania","Acireale"]},
+      {nome:"Enna",         cap:"Enna",         citta:["Enna"]},
+      {nome:"Messina",      cap:"Messina",      citta:["Messina"]},
+      {nome:"Ragusa",       cap:"Ragusa",       citta:["Ragusa","Modica"]},
+      {nome:"Siracusa",     cap:"Siracusa",     citta:["Siracusa","Augusta"]},
+      {nome:"Trapani",      cap:"Trapani",      citta:["Trapani","Marsala","Alcamo"]},
     ]},
-    { id:'sar', nome:'Sardegna',        cap:'Cagliari',   province:[
-      {nome:'Cagliari',      cap:'Cagliari',     citta:['Cagliari','Quartu S.E.','Selargius']},
-      {nome:'Nuoro',         cap:'Nuoro',        citta:['Nuoro','Siniscola']},
-      {nome:'Oristano',      cap:'Oristano',     citta:['Oristano']},
-      {nome:'Sassari',       cap:'Sassari',      citta:['Sassari','Alghero','Porto Torres']},
-      {nome:'Sud Sardegna',  cap:'Carbonia',     citta:['Carbonia','Iglesias']},
+    { geo:"Sardegna",           cap:"Cagliari", province:[
+      {nome:"Cagliari",     cap:"Cagliari",  citta:["Cagliari","Quartu S.E."]},
+      {nome:"Nuoro",        cap:"Nuoro",     citta:["Nuoro"]},
+      {nome:"Oristano",     cap:"Oristano",  citta:["Oristano"]},
+      {nome:"Sassari",      cap:"Sassari",   citta:["Sassari","Alghero","Porto Torres"]},
+      {nome:"Sud Sardegna", cap:"Carbonia",  citta:["Carbonia","Iglesias"]},
     ]},
   ],
 };
 
-// ─── Fase 1 — HTML template ───────────────────────────────────
+// ─── HTML ────────────────────────────────────────────────────
 function wmapBodyHTML(id) {
   return `
     <div class="wmap-wrap" id="wmapwrap${id}">
-      <canvas class="wmap-canvas" id="wmapcanvas${id}"></canvas>
-      <div class="wmap-ui">
-        <div class="wmap-breadcrumb" id="wmapbread${id}">ITALIA</div>
-        <div class="wmap-hub" id="wmaphub${id}">
+      <div class="wmap-left" id="wmapleft${id}">
+        <div class="wmap-info-top">
+          <div class="wmap-info-hint" id="wmaphint${id}">
+            Clicca su una regione per i dettagli
+          </div>
+          <div class="wmap-info-content" id="wmapinfo${id}" style="display:none"></div>
+        </div>
+      </div>
+      <div class="wmap-right" id="wmapright${id}">
+        <div class="wmap-topbar">
+          <div class="wmap-breadcrumb" id="wmapbread${id}">ITALIA</div>
+          <button class="wmap-back-btn" id="wmapback${id}" style="display:none">← Indietro</button>
+        </div>
+        <div class="wmap-area" id="wmaparea${id}">
           <svg class="wmap-svg" id="wmapsvg${id}" xmlns="http://www.w3.org/2000/svg"></svg>
+          <div class="wmap-loading" id="wmapload${id}">
+            <span class="wmap-loading-text">Caricamento mappa…</span>
+          </div>
         </div>
       </div>
     </div>`;
 }
 
-// ─── Fase 1 — Init ────────────────────────────────────────────
+// ─── Init ────────────────────────────────────────────────────
 function initWMap(id) {
   const w = WINS[id];
   if (!w || w.type !== 'wmap') return;
 
-  w.wmapState = { path: [], raf: null, canvasRo: null, hubRo: null };
+  w.wmapState = {
+    level:   'italia',  // 'italia' | 'regione'
+    regCode: null,      // reg_istat_code della regione selezionata
+    regName: null,      // reg_name (GeoJSON)
+    regColor:null,      // hex color della regione
+  };
 
-  _wmapStartMatrix(id);
-  _wmapRender(id);
+  document.getElementById('wmapback' + id)
+    ?.addEventListener('click', () => _wmapGoBack(id));
 
-  // Re-render hub-spoke su resize finestra
-  const hub = document.getElementById('wmaphub' + id);
-  if (hub) {
+  const area = document.getElementById('wmaparea' + id);
+  if (area) {
     const ro = new ResizeObserver(() => { if (WINS[id]) _wmapRender(id); });
-    ro.observe(hub);
-    w.wmapState.hubRo = ro;
+    ro.observe(area);
+    w._wmapRo = ro;
   }
 
   w._wmapDispose = () => {
-    const s = WINS[id]?.wmapState;
-    if (!s) return;
-    if (s.raf)      cancelAnimationFrame(s.raf);
-    s.canvasRo?.disconnect();
-    s.hubRo?.disconnect();
-    WINS[id].wmapState = null;
+    w._wmapRo?.disconnect();
+    w._wmapRo  = null;
+    w.wmapState = null;
   };
+
+  _wmapLoadItalia(id);
 }
 
-// ─── Matrix rain canvas ────────────────────────────────────────
-function _wmapStartMatrix(id) {
-  const canvas = document.getElementById('wmapcanvas' + id);
-  if (!canvas) return;
-  const ctx  = canvas.getContext('2d');
-  const wrap = document.getElementById('wmapwrap' + id);
+// ─── Caricamento dati Italia (regioni) ───────────────────────
+async function _wmapLoadItalia(id) {
+  const loadEl = document.getElementById('wmapload' + id);
+  if (loadEl) loadEl.style.display = 'flex';
 
-  const CHARS = '0123456789ABCDEF:/\\|<>=!#';
-  const FS    = 11;
-  let drops   = [];
-
-  function resize() {
-    canvas.width  = wrap.offsetWidth  || 820;
-    canvas.height = wrap.offsetHeight || 500;
-    const cols = Math.floor(canvas.width / FS);
-    drops = Array.from({ length: cols },
-      () => Math.random() * -(canvas.height / FS));
-  }
-  resize();
-
-  const ro = new ResizeObserver(resize);
-  ro.observe(wrap);
-  const w = WINS[id];
-  if (w?.wmapState) w.wmapState.canvasRo = ro;
-
-  let last = 0;
-  function tick(ts) {
-    if (!WINS[id]) { ro.disconnect(); return; }
-    const raf = requestAnimationFrame(tick);
-    if (WINS[id]?.wmapState) WINS[id].wmapState.raf = raf;
-    if (ts - last < 45) return;   // ~22 fps
-    last = ts;
-
-    ctx.fillStyle = 'rgba(0,0,0,0.08)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.font = FS + 'px "Space Mono",monospace';
-
-    for (let i = 0; i < drops.length; i++) {
-      const ch = CHARS[Math.floor(Math.random() * CHARS.length)];
-      // corpo
-      ctx.fillStyle = '#8b1a00';
-      ctx.fillText(ch, i * FS, drops[i] * FS);
-      // testa — più luminosa
-      ctx.fillStyle = '#ff5533';
-      ctx.fillText(CHARS[Math.floor(Math.random() * CHARS.length)], i * FS, (drops[i] - 1) * FS);
-
-      drops[i]++;
-      if (drops[i] * FS > canvas.height && Math.random() > 0.975)
-        drops[i] = Math.random() * -(canvas.height / FS / 2);
+  try {
+    if (!_WMAP_REGIONS) {
+      const r = await fetch(_WMAP_URL_REG);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _WMAP_REGIONS = await r.json();
     }
+  } catch (e) {
+    if (loadEl) {
+      loadEl.style.display = 'flex';
+      loadEl.innerHTML = '<span class="wmap-loading-text">⚠ Mappa non disponibile — verifica la connessione.</span>';
+    }
+    return;
   }
 
-  const raf = requestAnimationFrame(tick);
-  if (w?.wmapState) w.wmapState.raf = raf;
+  if (!WINS[id]) return;
+  if (loadEl) loadEl.style.display = 'none';
+  _wmapRender(id);
 }
 
-// ─── Fase 3 — Hub-spoke render ────────────────────────────────
+// ─── Render principale ───────────────────────────────────────
 function _wmapRender(id) {
   const w = WINS[id];
   if (!w?.wmapState) return;
 
-  const hub = document.getElementById('wmaphub' + id);
-  const svg = document.getElementById('wmapsvg' + id);
-  if (!hub || !svg) return;
+  const svg  = document.getElementById('wmapsvg' + id);
+  const area = document.getElementById('wmaparea' + id);
+  if (!svg || !area) return;
 
-  // Pulisce nodi precedenti (conserva svg)
-  [...hub.children].forEach(c => { if (c !== svg) c.remove(); });
+  const W = area.offsetWidth  || 580;
+  const H = area.offsetHeight || 480;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.setAttribute('width',  W);
+  svg.setAttribute('height', H);
   svg.innerHTML = '';
 
-  const W    = hub.offsetWidth  || 820;
-  const H    = hub.offsetHeight || 460;
-  const cx   = W / 2;
-  const cy   = H / 2;
-  const path = w.wmapState.path;
+  const { level, regCode } = w.wmapState;
 
-  // ── Dati del livello corrente ──
-  let centerLabel, centerSub, items, canDrill;
-
-  if (path.length === 0) {
-    // Italia → 20 regioni
-    centerLabel = 'ITALIA';
-    centerSub   = '20 regioni · click per espandere';
-    items       = ITALIA_DATA.regioni.map(r => ({
-      label: r.nome, sub: r.cap, key: r.id,
-    }));
-    canDrill = true;
-
-  } else if (path.length === 1) {
-    // Regione → province
-    const reg   = ITALIA_DATA.regioni.find(r => r.id === path[0]);
-    centerLabel = reg.nome.toUpperCase();
-    centerSub   = 'cap. ' + reg.cap;
-    items       = reg.province.map((p, i) => ({
-      label: p.nome, sub: p.cap, key: i,
-    }));
-    canDrill = true;
-
-  } else {
-    // Provincia → città
-    const reg   = ITALIA_DATA.regioni.find(r => r.id === path[0]);
-    const prov  = reg.province[path[1]];
-    centerLabel = prov.nome.toUpperCase();
-    centerSub   = 'prov. ' + prov.cap;
-    items       = prov.citta.map(c => ({ label: c, sub: '', key: null }));
-    canDrill = false;
+  if (level === 'italia' && _WMAP_REGIONS) {
+    _wmapDrawItalia(id, svg, W, H);
+  } else if (level === 'regione' && _WMAP_PROVINCES && regCode) {
+    _wmapDrawRegione(id, svg, W, H, regCode);
   }
-
-  const n = items.length;
-  // Raggio adattivo: più nodi → cerchio più grande, con limiti
-  const R = Math.max(100, Math.min(cx * 0.80, cy * 0.80, 200 + n * 3));
-
-  const NS = 'http://www.w3.org/2000/svg';
-
-  // ── Satelliti + linee ──
-  items.forEach((item, i) => {
-    const angle = (i / n) * 2 * Math.PI - Math.PI / 2;
-    const sx    = cx + R * Math.cos(angle);
-    const sy    = cy + R * Math.sin(angle);
-
-    // Linea SVG centro→satellite
-    const line = document.createElementNS(NS, 'line');
-    line.setAttribute('x1', cx); line.setAttribute('y1', cy);
-    line.setAttribute('x2', sx); line.setAttribute('y2', sy);
-    line.setAttribute('stroke', '#2a0000');
-    line.setAttribute('stroke-width', '1');
-    svg.appendChild(line);
-
-    // Nodo satellite
-    const nd = document.createElement('div');
-    nd.className = 'wmap-node' + (canDrill && item.key !== null ? ' clickable' : '');
-    nd.style.cssText = `left:${sx}px;top:${sy}px`;
-    nd.innerHTML =
-      `<div class="wmap-node-box">${item.label}</div>` +
-      (item.sub ? `<div class="wmap-node-sub">${item.sub}</div>` : '');
-    if (canDrill && item.key !== null)
-      nd.addEventListener('click', () => _wmapDrillDown(id, item.key));
-    hub.appendChild(nd);
-  });
-
-  // ── Nodo centrale ──
-  const cd = document.createElement('div');
-  cd.className = 'wmap-node' + (path.length > 0 ? ' clickable' : '');
-  cd.style.cssText = `left:${cx}px;top:${cy}px`;
-  cd.innerHTML =
-    `<div class="wmap-node-box center">${centerLabel}</div>` +
-    `<div class="wmap-node-sub">${centerSub}</div>`;
-  if (path.length > 0) {
-    cd.title = '← torna su';
-    cd.addEventListener('click', () => _wmapGoUp(id));
-  }
-  hub.appendChild(cd);
-
-  _wmapUpdateBreadcrumb(id);
 }
 
-// ─── Navigazione ──────────────────────────────────────────────
-function _wmapDrillDown(id, key) {
+// ─── Disegna Italia con 20 regioni ───────────────────────────
+function _wmapDrawItalia(id, svg, W, H) {
+  const features = _WMAP_REGIONS.features;
+  const proj = _wmapMakeProj(features, W, H, 16);
+
+  features.forEach((feat, i) => {
+    const color   = WMAP_REG_COLORS[i % WMAP_REG_COLORS.length];
+    const regName = feat.properties.reg_name || feat.properties.name || 'Regione';
+    const regCode = String(feat.properties.reg_istat_code || feat.properties.reg_istat_code_num || i);
+    const label   = _WMAP_REG_ALIAS[regName] || regName;
+
+    const d = _wmapGeoToPath(feat.geometry, proj);
+    if (!d) return;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', color);
+    path.setAttribute('stroke', 'var(--win-bg)');
+    path.setAttribute('stroke-width', '1.2');
+    path.setAttribute('class', 'wmap-region');
+    path.style.cursor = 'pointer';
+    path.style.transition = 'filter .12s';
+
+    path.addEventListener('mouseenter', () => {
+      path.style.filter = 'brightness(1.55)';
+    });
+    path.addEventListener('mouseleave', () => {
+      path.style.filter = '';
+    });
+    path.addEventListener('click', () =>
+      _wmapClickRegion(id, regCode, regName, color)
+    );
+    svg.appendChild(path);
+
+    // Label regione (nome breve centrato)
+    const c = _wmapCentroid(feat.geometry, proj);
+    if (c) {
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('x', c[0]);
+      txt.setAttribute('y', c[1] + 4);
+      txt.setAttribute('class', 'wmap-label');
+      txt.setAttribute('pointer-events', 'none');
+      txt.textContent = _wmapShortName(label, 11);
+      svg.appendChild(txt);
+    }
+  });
+}
+
+// ─── Click su regione: carica province e fa drill-down ───────
+async function _wmapClickRegion(id, regCode, regName, regColor) {
   const w = WINS[id];
   if (!w?.wmapState) return;
-  w.wmapState.path.push(key);
+
+  // Mostra info regione nel pannello sinistro
+  _wmapShowRegInfo(id, regName);
+
+  const loadEl = document.getElementById('wmapload' + id);
+
+  if (!_WMAP_PROVINCES) {
+    if (loadEl) { loadEl.innerHTML = '<span class="wmap-loading-text">Caricamento province…</span>'; loadEl.style.display = 'flex'; }
+    try {
+      const r = await fetch(_WMAP_URL_PRO);
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      _WMAP_PROVINCES = await r.json();
+    } catch (e) {
+      if (loadEl) { loadEl.innerHTML = '<span class="wmap-loading-text">⚠ Province non disponibili.</span>'; }
+      setTimeout(() => { if (loadEl) loadEl.style.display = 'none'; }, 3000);
+      return;
+    }
+    if (!WINS[id]) return;
+    if (loadEl) loadEl.style.display = 'none';
+  }
+
+  w.wmapState.level    = 'regione';
+  w.wmapState.regCode  = regCode;
+  w.wmapState.regName  = regName;
+  w.wmapState.regColor = regColor;
+
+  const backBtn = document.getElementById('wmapback' + id);
+  if (backBtn) backBtn.style.display = 'inline-block';
+
+  _wmapUpdateBreadcrumb(id);
   _wmapRender(id);
 }
 
-function _wmapGoUp(id) {
+// ─── Disegna province della regione selezionata ──────────────
+function _wmapDrawRegione(id, svg, W, H, regCode) {
+  const w        = WINS[id];
+  const regName  = w.wmapState.regName;
+  const baseColor = w.wmapState.regColor || '#1f5c96';
+
+  // Filtra province: prova prima per codice, poi per nome
+  let features = _WMAP_PROVINCES.features.filter(f => {
+    const c = String(f.properties.reg_istat_code || f.properties.reg_istat_code_num || '');
+    return c === regCode;
+  });
+  // Fallback: filtro per nome regione
+  if (features.length === 0) {
+    features = _WMAP_PROVINCES.features.filter(f =>
+      f.properties.reg_name === regName
+    );
+  }
+  if (features.length === 0) return;
+
+  const proj = _wmapMakeProj(features, W, H, 24);
+  const n    = features.length;
+
+  features.forEach((feat, i) => {
+    const color   = _wmapShade(baseColor, i, n);
+    const provName = feat.properties.prov_name || feat.properties.name || 'Provincia';
+
+    const d = _wmapGeoToPath(feat.geometry, proj);
+    if (!d) return;
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', color);
+    path.setAttribute('stroke', 'var(--win-bg)');
+    path.setAttribute('stroke-width', '1.5');
+    path.setAttribute('class', 'wmap-province');
+    path.style.cursor = 'pointer';
+    path.style.transition = 'filter .12s';
+
+    path.addEventListener('mouseenter', () => { path.style.filter = 'brightness(1.6)'; });
+    path.addEventListener('mouseleave', () => { path.style.filter = ''; });
+    path.addEventListener('click', () => _wmapShowProvInfo(id, provName));
+    svg.appendChild(path);
+
+    const c = _wmapCentroid(feat.geometry, proj);
+    if (c) {
+      const txt = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+      txt.setAttribute('x', c[0]);
+      txt.setAttribute('y', c[1] + 4);
+      txt.setAttribute('class', 'wmap-label');
+      txt.setAttribute('pointer-events', 'none');
+      txt.textContent = _wmapShortName(provName, 10);
+      svg.appendChild(txt);
+    }
+  });
+}
+
+// ─── Torna alla vista Italia ─────────────────────────────────
+function _wmapGoBack(id) {
   const w = WINS[id];
-  if (!w?.wmapState || w.wmapState.path.length === 0) return;
-  w.wmapState.path.pop();
+  if (!w?.wmapState) return;
+  w.wmapState.level    = 'italia';
+  w.wmapState.regCode  = null;
+  w.wmapState.regName  = null;
+  w.wmapState.regColor = null;
+
+  document.getElementById('wmapback' + id).style.display = 'none';
+
+  // Reset pannello info
+  document.getElementById('wmaphint' + id).style.display = 'block';
+  const infoEl = document.getElementById('wmapinfo' + id);
+  if (infoEl) { infoEl.style.display = 'none'; infoEl.innerHTML = ''; }
+
+  _wmapUpdateBreadcrumb(id);
   _wmapRender(id);
+}
+
+// ─── Pannello info — Regione ──────────────────────────────────
+function _wmapShowRegInfo(id, geoName) {
+  const hint  = document.getElementById('wmaphint' + id);
+  const infoEl = document.getElementById('wmapinfo' + id);
+  if (!infoEl) return;
+
+  if (hint) hint.style.display = 'none';
+
+  const data = ITALIA_DATA.regioni.find(r => r.geo === geoName);
+  const label = _WMAP_REG_ALIAS[geoName] || geoName;
+
+  let html = `<div class="wmap-info-name">${label}</div>`;
+  if (data) {
+    html += `<div class="wmap-info-cap">Capoluogo: <strong>${data.cap}</strong></div>`;
+    html += `<div class="wmap-info-sec">Province (${data.province.length})</div>`;
+    html += '<ul class="wmap-info-list">';
+    data.province.forEach(p => {
+      html += `<li class="wmap-info-item">
+        <span class="wmap-info-prov">${p.nome}</span>
+        <span class="wmap-info-subcap">${p.cap}</span>
+      </li>`;
+    });
+    html += '</ul>';
+  }
+  html += `<div class="wmap-info-hint-small">← Clicca una provincia per i dettagli</div>`;
+
+  infoEl.innerHTML = html;
+  infoEl.style.display = 'block';
+}
+
+// ─── Pannello info — Provincia ────────────────────────────────
+function _wmapShowProvInfo(id, provName) {
+  const infoEl = document.getElementById('wmapinfo' + id);
+  if (!infoEl) return;
+
+  const w       = WINS[id];
+  const regData = ITALIA_DATA.regioni.find(r => r.geo === w?.wmapState?.regName);
+  const provData = regData?.province.find(p =>
+    provName.toLowerCase().includes(p.nome.toLowerCase()) ||
+    p.nome.toLowerCase().includes(provName.toLowerCase().split(/[\s\-]/)[0])
+  );
+
+  const label = _WMAP_REG_ALIAS[w?.wmapState?.regName] || (w?.wmapState?.regName || '');
+  let html = `<div class="wmap-info-name">${provName}</div>`;
+  html += `<div class="wmap-info-cap wmap-info-region-back" id="wmapregback${id}">↩ ${label}</div>`;
+  if (provData) {
+    html += `<div class="wmap-info-cap">Capoluogo: <strong>${provData.cap}</strong></div>`;
+    html += `<div class="wmap-info-sec">Comuni principali</div>`;
+    html += '<ul class="wmap-info-list">';
+    provData.citta.forEach(c => { html += `<li class="wmap-info-item">${c}</li>`; });
+    html += '</ul>';
+  }
+
+  infoEl.innerHTML = html;
+
+  // Click "↩ RegioneName" → mostra di nuovo info regione
+  document.getElementById('wmapregback' + id)?.addEventListener('click', () =>
+    _wmapShowRegInfo(id, w.wmapState?.regName)
+  );
 }
 
 // ─── Breadcrumb ───────────────────────────────────────────────
@@ -377,16 +515,90 @@ function _wmapUpdateBreadcrumb(id) {
   const w  = WINS[id];
   const el = document.getElementById('wmapbread' + id);
   if (!el || !w?.wmapState) return;
-  const path  = w.wmapState.path;
-  const parts = ['ITALIA'];
-  if (path.length >= 1) {
-    const reg = ITALIA_DATA.regioni.find(r => r.id === path[0]);
-    if (reg) parts.push(reg.nome.toUpperCase());
+  const { level, regName } = w.wmapState;
+  if (level === 'italia') {
+    el.textContent = 'ITALIA';
+  } else {
+    const label = _WMAP_REG_ALIAS[regName] || regName || '';
+    el.textContent = 'ITALIA › ' + label.toUpperCase();
   }
-  if (path.length >= 2) {
-    const reg  = ITALIA_DATA.regioni.find(r => r.id === path[0]);
-    const prov = reg?.province[path[1]];
-    if (prov) parts.push(prov.nome);
+}
+
+// ─── Proiezione equirettangolare ─────────────────────────────
+function _wmapMakeProj(features, W, H, padding) {
+  let x0 =  Infinity, x1 = -Infinity;
+  let y0 =  Infinity, y1 = -Infinity;
+
+  function scan(c) {
+    if (!Array.isArray(c)) return;
+    if (typeof c[0] === 'number') {
+      x0 = Math.min(x0, c[0]); x1 = Math.max(x1, c[0]);
+      y0 = Math.min(y0, c[1]); y1 = Math.max(y1, c[1]);
+    } else { c.forEach(scan); }
   }
-  el.textContent = parts.join(' › ');
+
+  features.forEach(f => { if (f.geometry?.coordinates) scan(f.geometry.coordinates); });
+
+  if (!isFinite(x0)) return (lon, lat) => [0, 0];
+
+  const P  = padding;
+  const kx = (W - 2 * P) / (x1 - x0 || 1);
+  const ky = (H - 2 * P) / (y1 - y0 || 1);
+  const k  = Math.min(kx, ky);
+  const dx = (W - 2 * P - (x1 - x0) * k) / 2;
+  const dy = (H - 2 * P - (y1 - y0) * k) / 2;
+
+  return (lon, lat) => [
+    P + dx + (lon - x0) * k,
+    H - P - dy - (lat - y0) * k,
+  ];
+}
+
+// ─── GeoJSON geometry → SVG path d ───────────────────────────
+function _wmapGeoToPath(geometry, proj) {
+  if (!geometry) return '';
+  const ringToD = ring =>
+    ring.map((c, i) => {
+      const [x, y] = proj(c[0], c[1]);
+      return (i === 0 ? 'M' : 'L') + x.toFixed(1) + ' ' + y.toFixed(1);
+    }).join(' ') + ' Z';
+
+  if (geometry.type === 'Polygon')
+    return geometry.coordinates.map(ringToD).join(' ');
+  if (geometry.type === 'MultiPolygon')
+    return geometry.coordinates.map(p => p.map(ringToD).join(' ')).join(' ');
+  return '';
+}
+
+// ─── Centroide del poligono più grande ───────────────────────
+function _wmapCentroid(geometry, proj) {
+  if (!geometry) return null;
+  let ring;
+  if (geometry.type === 'Polygon') {
+    ring = geometry.coordinates[0];
+  } else if (geometry.type === 'MultiPolygon') {
+    ring = geometry.coordinates.reduce(
+      (best, p) => p[0].length > best.length ? p[0] : best,
+      geometry.coordinates[0][0]
+    );
+  } else return null;
+
+  let sx = 0, sy = 0;
+  ring.forEach(c => { const [x, y] = proj(c[0], c[1]); sx += x; sy += y; });
+  return [sx / ring.length, sy / ring.length];
+}
+
+// ─── Utilità ─────────────────────────────────────────────────
+function _wmapShortName(name, maxLen) {
+  if (name.length <= maxLen) return name;
+  return name.split(/[\s\/\-]/)[0];
+}
+
+function _wmapShade(hex, idx, total) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const f = 0.65 + (idx / Math.max(total - 1, 1)) * 0.7;
+  const clamp = v => Math.min(255, Math.max(0, Math.round(v * f)));
+  return `#${clamp(r).toString(16).padStart(2,'0')}${clamp(g).toString(16).padStart(2,'0')}${clamp(b).toString(16).padStart(2,'0')}`;
 }
