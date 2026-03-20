@@ -1,0 +1,118 @@
+/* ═══════════════════════════════════════════════════════════
+   W-MAP — Vista Italia hub-spoke / Matrix rosso
+   ═══════════════════════════════════════════════════════════ */
+
+.wmap-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+/* Canvas matrix rain — strato base */
+.wmap-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* UI overlay — sopra il canvas */
+.wmap-ui {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  pointer-events: none;
+}
+
+/* Breadcrumb */
+.wmap-breadcrumb {
+  flex-shrink: 0;
+  padding: 5px 14px;
+  font-family: 'Space Mono', monospace;
+  font-size: .55rem;
+  letter-spacing: .1em;
+  color: #ff3300;
+  background: rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid #2a0000;
+  pointer-events: none;
+}
+
+/* Area hub-spoke */
+.wmap-hub {
+  flex: 1;
+  position: relative;
+  pointer-events: none;
+}
+
+/* SVG linee di connessione */
+.wmap-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Nodo generico */
+.wmap-node {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: auto;
+  cursor: default;
+  text-align: center;
+  user-select: none;
+}
+
+.wmap-node.clickable {
+  cursor: pointer;
+}
+
+/* Box testo del nodo */
+.wmap-node-box {
+  padding: 3px 8px;
+  border: 1px solid #4a0000;
+  background: rgba(0, 0, 0, 0.82);
+  color: #bb3311;
+  font-family: 'Space Mono', monospace;
+  font-size: .5rem;
+  letter-spacing: .04em;
+  white-space: nowrap;
+  transition: border-color .15s, color .15s, background .15s, box-shadow .15s;
+}
+
+.wmap-node.clickable:hover .wmap-node-box {
+  border-color: #cc2200;
+  color: #ff7755;
+  background: rgba(40, 0, 0, 0.88);
+  box-shadow: 0 0 8px rgba(180, 30, 0, 0.5);
+}
+
+/* Nodo centrale — più grande e luminoso */
+.wmap-node-box.center {
+  border-color: #aa2200;
+  color: #ffaa88;
+  font-weight: 700;
+  font-size: .58rem;
+  background: rgba(20, 0, 0, 0.92);
+  box-shadow: 0 0 14px rgba(200, 40, 0, 0.55);
+}
+
+.wmap-node.clickable:hover .wmap-node-box.center {
+  border-color: #ff5522;
+  color: #ffddcc;
+  box-shadow: 0 0 20px rgba(255, 60, 0, 0.65);
+}
+
+/* Sottotitolo del nodo (capoluogo / cap. prov.) */
+.wmap-node-sub {
+  font-family: 'Space Mono', monospace;
+  font-size: .42rem;
+  color: #551100;
+  margin-top: 2px;
+  white-space: nowrap;
+  pointer-events: none;
+}
