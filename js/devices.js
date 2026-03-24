@@ -81,10 +81,6 @@ function devicesBodyHTML(id) {
     `<option value="${c.model}">${c.model} (${c.brand})</option>`
   ).join('');
 
-  const portOpts = Object.keys(DEV_PORTS).map(p =>
-    `<option value="${p}">${p}</option>`
-  ).join('');
-
   const devOpts = DEV_DEVICES.map(d =>
     `<option value="${d.model}">${d.model} — ${d.desc}</option>`
   ).join('');
@@ -97,11 +93,6 @@ function devicesBodyHTML(id) {
         <button class="dev-tb-btn" id="devaddctrl${id}">+ Controller</button>
       </div>
       <div class="dev-tb-section">
-        <div class="dev-tb-lbl">Porta</div>
-        <select class="dev-tb-select" id="devselport${id}">${portOpts}</select>
-        <button class="dev-tb-btn" id="devaddport${id}">+ Porta</button>
-      </div>
-      <div class="dev-tb-section">
         <div class="dev-tb-lbl">Dispositivo</div>
         <select class="dev-tb-select" id="devseldev${id}">${devOpts}</select>
         <button class="dev-tb-btn" id="devadddev${id}">+ Dispositivo</button>
@@ -111,7 +102,7 @@ function devicesBodyHTML(id) {
       </div>
       <div class="dev-tb-hint">
         Trascina nodi per posizionare<br>
-        Porta → connetti<br>
+        Pin porta → trascina verso device<br>
         Doppio clic → rinomina<br>
         Click → dettagli
       </div>
@@ -148,6 +139,16 @@ function _devSave(id) {
 // ── port position (same algorithm as schema) ─────────────
 
 function _devPortPos(nodeEl, port, canvasEl) {
+  // Named ports (controller pins) — use the actual dot element's position
+  if (!['top', 'right', 'bottom', 'left'].includes(port)) {
+    const dotEl = nodeEl.querySelector(`.dev-port[data-port="${CSS.escape(port)}"]`);
+    if (dotEl) {
+      const pr = dotEl.getBoundingClientRect();
+      const cr = canvasEl.getBoundingClientRect();
+      return { x: pr.left - cr.left + pr.width / 2, y: pr.top - cr.top + pr.height / 2 };
+    }
+  }
+  // Directional ports (top / right / bottom / left)
   const nr = nodeEl.getBoundingClientRect();
   const cr = canvasEl.getBoundingClientRect();
   const cx = nr.left - cr.left + nr.width / 2;
@@ -162,14 +163,14 @@ function _devPortPos(nodeEl, port, canvasEl) {
 }
 
 function _devNearestPort(nodeEl, px, py, canvasEl) {
-  const ports = ['top', 'right', 'bottom', 'left'];
   let best = null, bestDist = Infinity;
-  ports.forEach(p => {
+  nodeEl.querySelectorAll('.dev-port').forEach(portEl => {
+    const p   = portEl.dataset.port;
     const pos = _devPortPos(nodeEl, p, canvasEl);
-    const d = Math.hypot(pos.x - px, pos.y - py);
+    const d   = Math.hypot(pos.x - px, pos.y - py);
     if (d < bestDist) { bestDist = d; best = p; }
   });
-  return best;
+  return best || 'left';
 }
 
 function _devEdgePath(x1, y1, fromPort, x2, y2, toPort) {
@@ -209,6 +210,16 @@ function _devRenderEdges(id) {
     const tp = _devPortPos(toEl,   edge.toPort,   canvas);
     const d  = _devEdgePath(fp.x, fp.y, edge.fromPort, tp.x, tp.y, edge.toPort);
 
+    // Determine edge color from the connected port type
+    const fromNode = data.nodes.find(n => n.id === edge.fromId);
+    const toNode   = data.nodes.find(n => n.id === edge.toId);
+    let portType = null;
+    if (fromNode?.ntype === 'controller') portType = edge.fromPort;
+    else if (toNode?.ntype === 'controller') portType = edge.toPort;
+    else if (fromNode?.ntype === 'port') portType = fromNode.portType;
+    else if (toNode?.ntype === 'port')   portType = toNode.portType;
+    const edgeColor = (portType && DEV_PORTS[portType]?.color) || null;
+
     const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
     g.className.baseVal = 'dev-edge-group';
 
@@ -224,6 +235,10 @@ function _devRenderEdges(id) {
     path.setAttribute('d', d);
     path.setAttribute('class', 'dev-edge');
     path.setAttribute('marker-end', `url(#devarr${id})`);
+    if (edgeColor) {
+      path.style.stroke = edgeColor;
+      path.style.opacity = '0.65';
+    }
 
     hit.addEventListener('click', e => {
       e.stopPropagation();
@@ -605,14 +620,23 @@ function _devBuildNodeEl(id, node) {
 
   // inner HTML by type
   if (node.ntype === 'controller') {
+    const cat = DEV_CONTROLLERS.find(c => c.model === node.model);
+    const ports = cat ? cat.ports : [];
+    const portRows = ports.map(p => {
+      const ps  = DEV_PORTS[p] || {};
+      const col = ps.color || '#94a3b8';
+      return `<div class="dev-ctrl-port">
+        <span class="dev-ctrl-port-lbl" style="color:${col}">${p}</span>
+        <div class="dev-port" data-port="${p}" style="background:${col};border-color:${col}40"></div>
+      </div>`;
+    }).join('');
     el.innerHTML = `
-      <div class="dev-node-model">${node.label || node.model}</div>
-      <div class="dev-node-brand">${node.brand}</div>
-      <button class="dev-node-del" title="Elimina">✕</button>
-      <div class="dev-port" data-port="top"></div>
-      <div class="dev-port" data-port="right"></div>
-      <div class="dev-port" data-port="bottom"></div>
-      <div class="dev-port" data-port="left"></div>`;
+      <div class="dev-ctrl-header">
+        <div class="dev-node-model">${node.label || node.model}</div>
+        <div class="dev-node-brand">${node.brand}</div>
+      </div>
+      ${ports.length ? `<div class="dev-ctrl-ports">${portRows}</div>` : ''}
+      <button class="dev-node-del" title="Elimina">✕</button>`;
   } else if (node.ntype === 'port') {
     el.innerHTML = `
       <div class="dev-node-porttype">${node.portType}</div>
@@ -898,11 +922,6 @@ function initDevices(id) {
   document.getElementById('devaddctrl' + id)?.addEventListener('click', () => {
     const sel = document.getElementById('devselctrl' + id);
     _devAddController(id, sel?.value || 'EHC 602');
-  });
-
-  document.getElementById('devaddport' + id)?.addEventListener('click', () => {
-    const sel = document.getElementById('devselport' + id);
-    _devAddPort(id, sel?.value || 'RS 485');
   });
 
   document.getElementById('devadddev' + id)?.addEventListener('click', () => {
