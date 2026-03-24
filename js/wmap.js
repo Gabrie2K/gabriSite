@@ -10,8 +10,10 @@
 let _WMAP_REGIONS   = null;   // GeoJSON regioni (caricato all'apertura)
 let _WMAP_PROVINCES = null;   // GeoJSON province (caricato al click)
 
-const _WMAP_URL_REG = 'https://cdn.jsdelivr.net/gh/openpolis/geojson-italy@master/geojson/limits_IT_regions.geojson';
-const _WMAP_URL_PRO = 'https://cdn.jsdelivr.net/gh/openpolis/geojson-italy@master/geojson/limits_IT_provinces.geojson';
+// Regions: stefanocudini/leaflet-geojson-selector (363KB, verificato OK, prop: id + name lowercase)
+const _WMAP_URL_REG = 'https://raw.githubusercontent.com/stefanocudini/leaflet-geojson-selector/master/examples/italy-regions.json';
+// Provinces: openpolis/geojson-italy master (prop: prov_name, reg_name, reg_istat_code)
+const _WMAP_URL_PRO = 'https://raw.githubusercontent.com/openpolis/geojson-italy/master/geojson/limits_IT_provinces.geojson';
 
 // ─── Palette 20 colori regioni (distinguibili su sfondo scuro) ─
 const WMAP_REG_COLORS = [
@@ -21,12 +23,35 @@ const WMAP_REG_COLORS = [
   '#1a5a3a','#3a5a18','#5a2a18','#2a4a9a','#5a3a18',
 ];
 
-// ─── Normalizzazione nomi GeoJSON → nome breve UI ─────────────
-const _WMAP_REG_ALIAS = {
-  "Valle d'Aosta/Vallée d'Aoste": "Valle d'Aosta",
-  "Trentino-Alto Adige/Südtirol": "Trentino-A.A.",
-  "Friuli-Venezia Giulia":         "Friuli-V.G.",
+// ─── Display names (chiave = name lowercase da stefanocudini) ──
+const _WMAP_DISPLAY = {
+  "piemonte":              "Piemonte",
+  "valle d'aosta":         "Valle d'Aosta",
+  "lombardia":             "Lombardia",
+  "trentino-alto adige":   "Trentino-A.A.",
+  "veneto":                "Veneto",
+  "friuli venezia giulia": "Friuli-V.G.",
+  "liguria":               "Liguria",
+  "emilia romagna":        "Emilia-Romagna",
+  "toscana":               "Toscana",
+  "umbria":                "Umbria",
+  "marche":                "Marche",
+  "lazio":                 "Lazio",
+  "abruzzo":               "Abruzzo",
+  "molise":                "Molise",
+  "campania":              "Campania",
+  "puglia":                "Puglia",
+  "basilicata":            "Basilicata",
+  "calabria":              "Calabria",
+  "sicilia":               "Sicilia",
+  "sardegna":              "Sardegna",
 };
+
+// Normalizza per confronto fuzzy tra sorgenti diverse
+// (rimuove trattini, slash, apostrofi, mette tutto lowercase)
+function _wmapNorm(s) {
+  return (s || '').toLowerCase().replace(/[-\/''']/g, ' ').replace(/\s+/g, ' ').trim();
+}
 
 // ─── Dati statici (per il pannello info) ─────────────────────
 const ITALIA_DATA = {
@@ -214,10 +239,9 @@ function initWMap(id) {
   if (!w || w.type !== 'wmap') return;
 
   w.wmapState = {
-    level:   'italia',  // 'italia' | 'regione'
-    regCode: null,      // reg_istat_code della regione selezionata
-    regName: null,      // reg_name (GeoJSON)
-    regColor:null,      // hex color della regione
+    level:    'italia',  // 'italia' | 'regione'
+    regName:  null,      // name lowercase da stefanocudini
+    regColor: null,      // hex color della regione
   };
 
   document.getElementById('wmapback' + id)
@@ -279,12 +303,12 @@ function _wmapRender(id) {
   svg.setAttribute('height', H);
   svg.innerHTML = '';
 
-  const { level, regCode } = w.wmapState;
+  const { level, regName } = w.wmapState;
 
   if (level === 'italia' && _WMAP_REGIONS) {
     _wmapDrawItalia(id, svg, W, H);
-  } else if (level === 'regione' && _WMAP_PROVINCES && regCode) {
-    _wmapDrawRegione(id, svg, W, H, regCode);
+  } else if (level === 'regione' && _WMAP_PROVINCES && regName) {
+    _wmapDrawRegione(id, svg, W, H);
   }
 }
 
@@ -295,9 +319,9 @@ function _wmapDrawItalia(id, svg, W, H) {
 
   features.forEach((feat, i) => {
     const color   = WMAP_REG_COLORS[i % WMAP_REG_COLORS.length];
-    const regName = feat.properties.reg_name || feat.properties.name || 'Regione';
-    const regCode = String(feat.properties.reg_istat_code || feat.properties.reg_istat_code_num || i);
-    const label   = _WMAP_REG_ALIAS[regName] || regName;
+    // stefanocudini: feat.properties.name = "piemonte" (lowercase)
+    const regName = feat.properties.name || feat.properties.reg_name || String(i);
+    const label   = _WMAP_DISPLAY[regName] || regName;
 
     const d = _wmapGeoToPath(feat.geometry, proj);
     if (!d) return;
@@ -318,7 +342,7 @@ function _wmapDrawItalia(id, svg, W, H) {
       path.style.filter = '';
     });
     path.addEventListener('click', () =>
-      _wmapClickRegion(id, regCode, regName, color)
+      _wmapClickRegion(id, regName, color)
     );
     svg.appendChild(path);
 
@@ -337,7 +361,7 @@ function _wmapDrawItalia(id, svg, W, H) {
 }
 
 // ─── Click su regione: carica province e fa drill-down ───────
-async function _wmapClickRegion(id, regCode, regName, regColor) {
+async function _wmapClickRegion(id, regName, regColor) {
   const w = WINS[id];
   if (!w?.wmapState) return;
 
@@ -362,7 +386,6 @@ async function _wmapClickRegion(id, regCode, regName, regColor) {
   }
 
   w.wmapState.level    = 'regione';
-  w.wmapState.regCode  = regCode;
   w.wmapState.regName  = regName;
   w.wmapState.regColor = regColor;
 
@@ -374,22 +397,17 @@ async function _wmapClickRegion(id, regCode, regName, regColor) {
 }
 
 // ─── Disegna province della regione selezionata ──────────────
-function _wmapDrawRegione(id, svg, W, H, regCode) {
-  const w        = WINS[id];
-  const regName  = w.wmapState.regName;
+function _wmapDrawRegione(id, svg, W, H) {
+  const w         = WINS[id];
+  const regName   = w.wmapState.regName;
   const baseColor = w.wmapState.regColor || '#1f5c96';
 
-  // Filtra province: prova prima per codice, poi per nome
-  let features = _WMAP_PROVINCES.features.filter(f => {
-    const c = String(f.properties.reg_istat_code || f.properties.reg_istat_code_num || '');
-    return c === regCode;
+  // Fuzzy match: normalizza sia il nome stefanocudini che il reg_name openpolis
+  const normReg = _wmapNorm(regName);
+  const features = _WMAP_PROVINCES.features.filter(f => {
+    const pn = _wmapNorm(f.properties.reg_name);
+    return pn === normReg || pn.startsWith(normReg) || normReg.startsWith(pn);
   });
-  // Fallback: filtro per nome regione
-  if (features.length === 0) {
-    features = _WMAP_PROVINCES.features.filter(f =>
-      f.properties.reg_name === regName
-    );
-  }
   if (features.length === 0) return;
 
   const proj = _wmapMakeProj(features, W, H, 24);
@@ -434,7 +452,6 @@ function _wmapGoBack(id) {
   const w = WINS[id];
   if (!w?.wmapState) return;
   w.wmapState.level    = 'italia';
-  w.wmapState.regCode  = null;
   w.wmapState.regName  = null;
   w.wmapState.regColor = null;
 
@@ -450,15 +467,17 @@ function _wmapGoBack(id) {
 }
 
 // ─── Pannello info — Regione ──────────────────────────────────
-function _wmapShowRegInfo(id, geoName) {
-  const hint  = document.getElementById('wmaphint' + id);
+function _wmapShowRegInfo(id, regName) {
+  const hint   = document.getElementById('wmaphint' + id);
   const infoEl = document.getElementById('wmapinfo' + id);
   if (!infoEl) return;
 
   if (hint) hint.style.display = 'none';
 
-  const data = ITALIA_DATA.regioni.find(r => r.geo === geoName);
-  const label = _WMAP_REG_ALIAS[geoName] || geoName;
+  // regName è lowercase (stefanocudini); ITALIA_DATA.geo è proper-case → match fuzzy
+  const normKey = _wmapNorm(regName);
+  const data  = ITALIA_DATA.regioni.find(r => _wmapNorm(r.geo).startsWith(normKey) || normKey.startsWith(_wmapNorm(r.geo)));
+  const label = _WMAP_DISPLAY[regName] || regName;
 
   let html = `<div class="wmap-info-name">${label}</div>`;
   if (data) {
@@ -485,13 +504,17 @@ function _wmapShowProvInfo(id, provName) {
   if (!infoEl) return;
 
   const w       = WINS[id];
-  const regData = ITALIA_DATA.regioni.find(r => r.geo === w?.wmapState?.regName);
+  const regName = w?.wmapState?.regName || '';
+  const normKey = _wmapNorm(regName);
+  const regData = ITALIA_DATA.regioni.find(r =>
+    _wmapNorm(r.geo).startsWith(normKey) || normKey.startsWith(_wmapNorm(r.geo))
+  );
   const provData = regData?.province.find(p =>
     provName.toLowerCase().includes(p.nome.toLowerCase()) ||
     p.nome.toLowerCase().includes(provName.toLowerCase().split(/[\s\-]/)[0])
   );
 
-  const label = _WMAP_REG_ALIAS[w?.wmapState?.regName] || (w?.wmapState?.regName || '');
+  const label = _WMAP_DISPLAY[regName] || regName;
   let html = `<div class="wmap-info-name">${provName}</div>`;
   html += `<div class="wmap-info-cap wmap-info-region-back" id="wmapregback${id}">↩ ${label}</div>`;
   if (provData) {
@@ -506,7 +529,7 @@ function _wmapShowProvInfo(id, provName) {
 
   // Click "↩ RegioneName" → mostra di nuovo info regione
   document.getElementById('wmapregback' + id)?.addEventListener('click', () =>
-    _wmapShowRegInfo(id, w.wmapState?.regName)
+    _wmapShowRegInfo(id, regName)
   );
 }
 
@@ -519,7 +542,7 @@ function _wmapUpdateBreadcrumb(id) {
   if (level === 'italia') {
     el.textContent = 'ITALIA';
   } else {
-    const label = _WMAP_REG_ALIAS[regName] || regName || '';
+    const label = _WMAP_DISPLAY[regName] || regName || '';
     el.textContent = 'ITALIA › ' + label.toUpperCase();
   }
 }
