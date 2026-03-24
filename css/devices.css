@@ -170,18 +170,68 @@
 
 /* ── controller node ── */
 .dev-node.controller {
-  min-width: 140px;
-  min-height: 52px;
-  background: rgba(20,50,110,.92);
-  border: 2px solid rgba(59,130,246,.6);
+  min-width: 160px;
+  background: rgba(10,25,70,.97);
+  border: 2px solid rgba(59,130,246,.65);
+  border-radius: 6px;
   color: #fff;
+  align-items: stretch;
+  padding: 0;
+  overflow: visible; /* port pins can protrude */
 }
-.dev-node.controller:hover { border-color: rgba(59,130,246,.9); }
+.dev-node.controller:hover { border-color: rgba(59,130,246,.95); }
+
+/* ── controller inner sections ── */
+.dev-ctrl-header {
+  padding: 7px 12px 5px;
+  text-align: center;
+  border-bottom: 1px solid rgba(59,130,246,.2);
+}
+
+.dev-ctrl-ports {
+  padding: 3px 0 4px;
+}
+
+.dev-ctrl-port {
+  display: flex;
+  align-items: center;
+  padding: 2px 0 2px 10px;
+  gap: 6px;
+  position: relative;
+}
+
+.dev-ctrl-port-lbl {
+  font-size: .46rem;
+  font-family: 'Space Mono', monospace;
+  flex: 1;
+  opacity: .88;
+  letter-spacing: .01em;
+  white-space: nowrap;
+}
+
+/* Named port pins — always visible, on the right edge */
+.dev-ctrl-port .dev-port {
+  position: relative !important;
+  top: auto !important; left: auto !important;
+  right: auto !important; bottom: auto !important;
+  transform: none !important;
+  opacity: 1 !important;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-right: -6px; /* protrude beyond controller border */
+  cursor: crosshair;
+  transition: transform .12s;
+  z-index: 3;
+}
+.dev-ctrl-port .dev-port:hover {
+  transform: scale(1.45) !important;
+}
 
 .dev-node-model {
   font-size: .7rem;
   font-weight: 700;
-  padding: 0 12px;
   text-align: center;
 }
 
@@ -191,6 +241,7 @@
   letter-spacing: .08em;
   opacity: .6;
   margin-top: 1px;
+  text-align: center;
 }
 
 /* ── port node ── */
