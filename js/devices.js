@@ -372,8 +372,7 @@ function _devRenderEdges(id) {
   });
 
   // refresh controller LED statuses after edges change
-  const w = WINS[id];
-  if (w?.devData) {
+  if (w.devData) {
     w.devData.nodes.filter(n => n.ntype === 'controller').forEach(n => {
       _devRefreshCtrlLeds(id, n, w.devData);
     });
