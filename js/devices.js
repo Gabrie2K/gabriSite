@@ -8,13 +8,70 @@
 // ── catalogo controller ──────────────────────────────────
 
 const DEV_CONTROLLERS = [
-  { model: 'EHC 602',           brand: 'Coster',   ports: ['RS 485', 'M-Bus', 'Radio 868', 'DALI'] },
-  { model: 'UCG 300',           brand: 'Coster',   ports: ['RS 485', 'BACnet IP', 'Modbus TCP', 'M-Bus'] },
-  { model: 'UCG 400',           brand: 'Coster',   ports: ['RS 485', 'BACnet IP', 'Modbus TCP', 'M-Bus', 'KNX'] },
-  { model: 'Kona Micro',        brand: 'Tektelic', ports: ['LoRaWAN', 'Ethernet'] },
-  { model: 'Kona Macro',        brand: 'Tektelic', ports: ['LoRaWAN', 'Ethernet', 'LTE'] },
-  { model: 'Kona Enterprise',   brand: 'Tektelic', ports: ['LoRaWAN', 'Ethernet', 'Wi-Fi', 'LTE'] },
-  { model: 'Generico',          brand: 'Custom',   ports: ['RS 485', 'Modbus TCP', 'BACnet IP', 'M-Bus', 'LoRaWAN', 'KNX', 'DALI', 'Radio 868', 'Ethernet', 'Wi-Fi', 'LTE'] },
+  {
+    model: 'EHC 602', brand: 'Coster',
+    portDefs: [
+      { key: 'RS485-1',  type: 'RS 485',    label: 'RS485-1' },
+      { key: 'RS485-2',  type: 'RS 485',    label: 'RS485-2' },
+      { key: 'M-Bus',    type: 'M-Bus',     label: 'M-Bus' },
+      { key: 'Radio868', type: 'Radio 868', label: 'Radio 868' },
+      { key: 'DALI',     type: 'DALI',      label: 'DALI' },
+    ],
+    addable: ['RS 485'],
+  },
+  {
+    model: 'UCG 300', brand: 'Coster',
+    portDefs: [
+      { key: 'RS485-1',    type: 'RS 485',    label: 'RS485-1' },
+      { key: 'BACnet-IP',  type: 'BACnet IP', label: 'BACnet IP' },
+      { key: 'Modbus-TCP', type: 'Modbus TCP',label: 'Modbus TCP' },
+      { key: 'M-Bus',      type: 'M-Bus',     label: 'M-Bus' },
+    ],
+    addable: ['RS 485'],
+  },
+  {
+    model: 'UCG 400', brand: 'Coster',
+    portDefs: [
+      { key: 'RS485-1',    type: 'RS 485',    label: 'RS485-1' },
+      { key: 'BACnet-IP',  type: 'BACnet IP', label: 'BACnet IP' },
+      { key: 'Modbus-TCP', type: 'Modbus TCP',label: 'Modbus TCP' },
+      { key: 'M-Bus',      type: 'M-Bus',     label: 'M-Bus' },
+      { key: 'KNX',        type: 'KNX',       label: 'KNX' },
+    ],
+    addable: ['RS 485'],
+  },
+  {
+    model: 'Kona Micro', brand: 'Tektelic',
+    portDefs: [
+      { key: 'LoRaWAN', type: 'LoRaWAN',  label: 'LoRaWAN' },
+      { key: 'ETH-1',   type: 'Ethernet', label: 'ETH-1' },
+    ],
+    addable: [],
+  },
+  {
+    model: 'Kona Macro', brand: 'Tektelic',
+    portDefs: [
+      { key: 'LoRaWAN', type: 'LoRaWAN',  label: 'LoRaWAN' },
+      { key: 'ETH-1',   type: 'Ethernet', label: 'ETH-1' },
+      { key: 'LTE',     type: 'LTE',      label: 'LTE' },
+    ],
+    addable: [],
+  },
+  {
+    model: 'Kona Enterprise', brand: 'Tektelic',
+    portDefs: [
+      { key: 'LoRaWAN', type: 'LoRaWAN',  label: 'LoRaWAN' },
+      { key: 'ETH-1',   type: 'Ethernet', label: 'ETH-1' },
+      { key: 'Wi-Fi',   type: 'Wi-Fi',    label: 'Wi-Fi' },
+      { key: 'LTE',     type: 'LTE',      label: 'LTE' },
+    ],
+    addable: [],
+  },
+  {
+    model: 'Generico', brand: 'Custom',
+    portDefs: [],
+    addable: ['RS 485','M-Bus','Ethernet','LoRaWAN','KNX','DALI','Radio 868','BACnet IP','Modbus TCP','Wi-Fi','LTE'],
+  },
 ];
 
 // ── catalogo porte ───────────────────────────────────────
@@ -31,6 +88,68 @@ const DEV_PORTS = {
   'Ethernet':   { color: '#94a3b8', bg: 'rgba(148,163,184,.1)', border: 'rgba(148,163,184,.4)' },
   'Wi-Fi':      { color: '#818cf8', bg: 'rgba(129,140,248,.1)', border: 'rgba(129,140,248,.4)' },
   'LTE':        { color: '#f87171', bg: 'rgba(248,113,113,.1)', border: 'rgba(248,113,113,.4)' },
+};
+
+// ── parametri default per tipo porta ─────────────────────
+
+const DEV_PORT_PARAMS = {
+  'RS 485': [
+    { key: 'baud',   label: 'Baud Rate',      type: 'select', opts: ['1200','2400','4800','9600','19200','38400','57600','115200'], def: '9600' },
+    { key: 'parity', label: 'Parity',          type: 'select', opts: ['None','Even','Odd'], def: 'None' },
+    { key: 'stop',   label: 'Stop Bits',       type: 'select', opts: ['1','2'], def: '1' },
+    { key: 'addr',   label: 'Addr. Range',     type: 'text',   def: '1–32' },
+  ],
+  'M-Bus': [
+    { key: 'speed',  label: 'Speed (baud)',    type: 'select', opts: ['300','2400','9600'], def: '2400' },
+    { key: 'mode',   label: 'Mode',            type: 'select', opts: ['primary','secondary'], def: 'primary' },
+    { key: 'addrs',  label: 'Addr. Range',     type: 'text',   def: '1–250' },
+  ],
+  'Ethernet': [
+    { key: 'ip',     label: 'IP Address',      type: 'text',   def: '192.168.1.100' },
+    { key: 'mask',   label: 'Subnet Mask',     type: 'text',   def: '255.255.255.0' },
+    { key: 'gw',     label: 'Gateway',         type: 'text',   def: '192.168.1.1' },
+    { key: 'port',   label: 'TCP Port',        type: 'text',   def: '502' },
+  ],
+  'BACnet IP': [
+    { key: 'devId',  label: 'Device ID',       type: 'text',   def: '1' },
+    { key: 'port',   label: 'UDP Port',        type: 'text',   def: '47808' },
+    { key: 'range',  label: 'Inst. Range',     type: 'text',   def: '0–4194302' },
+  ],
+  'Modbus TCP': [
+    { key: 'ip',     label: 'IP Address',      type: 'text',   def: '192.168.1.100' },
+    { key: 'port',   label: 'TCP Port',        type: 'text',   def: '502' },
+    { key: 'unit',   label: 'Unit ID',         type: 'text',   def: '1' },
+  ],
+  'LoRaWAN': [
+    { key: 'sf',     label: 'Spreading Factor',type: 'select', opts: ['SF7','SF8','SF9','SF10','SF11','SF12'], def: 'SF9' },
+    { key: 'bw',     label: 'Bandwidth',       type: 'select', opts: ['125 kHz','250 kHz','500 kHz'], def: '125 kHz' },
+    { key: 'appEui', label: 'App EUI',         type: 'text',   def: '' },
+    { key: 'devEui', label: 'Dev EUI',         type: 'text',   def: '' },
+    { key: 'appKey', label: 'App Key',         type: 'text',   def: '' },
+  ],
+  'KNX': [
+    { key: 'ia',     label: 'Individual Addr', type: 'text',   def: '1.1.1' },
+    { key: 'medium', label: 'Medium',          type: 'select', opts: ['TP','IP','RF','PL110'], def: 'TP' },
+  ],
+  'DALI': [
+    { key: 'group',  label: 'Group Address',   type: 'text',   def: '0' },
+    { key: 'level',  label: 'Power-on Level',  type: 'text',   def: '100' },
+    { key: 'fade',   label: 'Fade Time',       type: 'select', opts: ['0s','0.7s','1s','2s','4s'], def: '1s' },
+  ],
+  'Radio 868': [
+    { key: 'ch',     label: 'Channel',         type: 'text',   def: '1' },
+    { key: 'power',  label: 'TX Power (dBm)',  type: 'select', opts: ['10','14','20','27'], def: '14' },
+    { key: 'rate',   label: 'Data Rate',       type: 'select', opts: ['Low','Medium','High'], def: 'Medium' },
+  ],
+  'Wi-Fi': [
+    { key: 'ssid',   label: 'SSID',            type: 'text',   def: '' },
+    { key: 'sec',    label: 'Security',        type: 'select', opts: ['WPA2','WPA3','Open'], def: 'WPA2' },
+  ],
+  'LTE': [
+    { key: 'apn',    label: 'APN',             type: 'text',   def: '' },
+    { key: 'user',   label: 'Username',        type: 'text',   def: '' },
+    { key: 'band',   label: 'Band',            type: 'text',   def: 'auto' },
+  ],
 };
 
 // ── catalogo device ──────────────────────────────────────
@@ -251,6 +370,14 @@ function _devRenderEdges(id) {
     g.appendChild(path);
     svg.appendChild(g);
   });
+
+  // refresh controller LED statuses after edges change
+  const w = WINS[id];
+  if (w?.devData) {
+    w.devData.nodes.filter(n => n.ntype === 'controller').forEach(n => {
+      _devRefreshCtrlLeds(id, n, w.devData);
+    });
+  }
 }
 
 // ── update count ─────────────────────────────────────────
@@ -303,11 +430,46 @@ function _devShowDetail(id, node) {
   }
 
   if (node.ntype === 'controller') {
-    addField('Tipo', 'Controller', false);
+    // ── info compatta controller ──
     addField('Modello', node.model, false);
     addField('Brand', node.brand, false);
     addField('Label', node.label || '', true, 'label');
-    addField('Porte disponibili', (DEV_CONTROLLERS.find(c => c.model === node.model)?.ports || []).join(', '), false);
+
+    // ── compartimenti per porta ──
+    const portDefs = _devGetPortDefs(node);
+    if (!node.portParams) node.portParams = {};
+
+    portDefs.forEach(pd => {
+      if (!node.portParams[pd.key]) node.portParams[pd.key] = _devDefaultPortParams(pd.type);
+      _devRenderPortCompartment(id, node, pd, body, _devData(id));
+    });
+
+    // ── aggiungi porta ──
+    const cat = DEV_CONTROLLERS.find(c => c.model === node.model);
+    const addable = cat?.addable || [];
+    if (addable.length) {
+      const addRow = document.createElement('div');
+      addRow.className = 'dev-pp-addrow';
+      const addSel = document.createElement('select');
+      addSel.className = 'dev-tb-select dev-pp-addsel';
+      addable.forEach(t => {
+        const o = document.createElement('option'); o.value = t; o.textContent = t;
+        addSel.appendChild(o);
+      });
+      const addBtn = document.createElement('button');
+      addBtn.className = 'dev-tb-btn dev-pp-addbtn';
+      addBtn.textContent = '+ Porta';
+      addBtn.addEventListener('mousedown', e => e.stopPropagation());
+      addBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        _devAddPortInstance(id, node, addSel.value);
+        _devShowDetail(id, node); // refresh panel
+      });
+      addSel.addEventListener('mousedown', e => e.stopPropagation());
+      addRow.appendChild(addSel);
+      addRow.appendChild(addBtn);
+      body.appendChild(addRow);
+    }
   } else if (node.ntype === 'port') {
     addField('Tipo', 'Porta', false);
     addField('Tipo porta', node.portType, false);
@@ -330,6 +492,256 @@ function _devShowDetail(id, node) {
 
 function _devCloseDetail(id) {
   document.getElementById('devdetail' + id)?.classList.remove('open');
+}
+
+// ── port defs helpers ─────────────────────────────────────
+
+function _devGetPortDefs(node) {
+  if (node.portDefs) return node.portDefs;
+  const cat = DEV_CONTROLLERS.find(c => c.model === node.model);
+  if (!cat) return [];
+  if (cat.portDefs) return cat.portDefs.map(pd => ({ ...pd }));
+  if (cat.ports) return cat.ports.map(p => ({ key: p, type: p, label: p }));
+  return [];
+}
+
+function _devDefaultPortParams(type) {
+  const defs = DEV_PORT_PARAMS[type] || [];
+  const out = {};
+  defs.forEach(d => { out[d.key] = d.def; });
+  return out;
+}
+
+// ── port compartment renderer (detail panel) ─────────────
+
+function _devRenderPortCompartment(id, node, pd, body, data) {
+  const ps  = DEV_PORTS[pd.type] || {};
+  const col = ps.color || '#94a3b8';
+  const connected = (data.edges || []).some(e =>
+    (e.fromId === node.id && e.fromPort === pd.key) ||
+    (e.toId   === node.id && e.toPort   === pd.key)
+  );
+  const params = DEV_PORT_PARAMS[pd.type] || [];
+
+  const section = document.createElement('div');
+  section.className = 'dev-pp-section';
+  section.dataset.portkey = pd.key;
+
+  // header
+  const hdr = document.createElement('div');
+  hdr.className = 'dev-pp-hdr';
+  hdr.style.borderLeftColor = col;
+  hdr.innerHTML = `
+    <span class="dev-pp-led" style="${connected ? `background:${col}` : `border-color:${col}`}"></span>
+    <span class="dev-pp-name" style="color:${col}">${pd.label}</span>
+    <span class="dev-pp-type">${pd.type}</span>
+    <span class="dev-pp-status">${connected ? 'connesso' : 'idle'}</span>`;
+
+  // delete port button
+  const delPBtn = document.createElement('button');
+  delPBtn.className = 'dev-pp-del';
+  delPBtn.textContent = '✕';
+  delPBtn.title = 'Rimuovi porta';
+  delPBtn.addEventListener('mousedown', e => e.stopPropagation());
+  delPBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    node.portDefs = (node.portDefs || []).filter(p => p.key !== pd.key);
+    delete node.portParams[pd.key];
+    // remove connected edges
+    const devData = _devData(id);
+    devData.edges = devData.edges.filter(e2 =>
+      !(e2.fromId === node.id && e2.fromPort === pd.key) &&
+      !(e2.toId   === node.id && e2.toPort   === pd.key)
+    );
+    _devRebuildCtrlNode(id, node);
+    _devSave(id);
+    _devShowDetail(id, node);
+  });
+  hdr.appendChild(delPBtn);
+  section.appendChild(hdr);
+
+  // params fields
+  if (params.length) {
+    const fields = document.createElement('div');
+    fields.className = 'dev-pp-fields';
+    params.forEach(def => {
+      const row = document.createElement('div');
+      row.className = 'dev-pp-row';
+      const lbl = document.createElement('span');
+      lbl.className = 'dev-pp-lbl';
+      lbl.textContent = def.label;
+      row.appendChild(lbl);
+
+      let ctrl;
+      if (def.type === 'select') {
+        ctrl = document.createElement('select');
+        ctrl.className = 'dev-tb-select dev-pp-ctrl';
+        def.opts.forEach(o => {
+          const opt = document.createElement('option');
+          opt.value = o; opt.textContent = o;
+          if ((node.portParams[pd.key]?.[def.key] || def.def) === o) opt.selected = true;
+          ctrl.appendChild(opt);
+        });
+        ctrl.addEventListener('change', () => {
+          if (!node.portParams[pd.key]) node.portParams[pd.key] = {};
+          node.portParams[pd.key][def.key] = ctrl.value;
+          _devSave(id);
+        });
+      } else {
+        ctrl = document.createElement('input');
+        ctrl.className = 'dev-detail-inp dev-pp-ctrl';
+        ctrl.value = node.portParams[pd.key]?.[def.key] ?? def.def;
+        ctrl.addEventListener('input', () => {
+          if (!node.portParams[pd.key]) node.portParams[pd.key] = {};
+          node.portParams[pd.key][def.key] = ctrl.value;
+          _devSave(id);
+        });
+      }
+      ctrl.addEventListener('mousedown', e => e.stopPropagation());
+      row.appendChild(ctrl);
+      fields.appendChild(row);
+    });
+    section.appendChild(fields);
+  }
+
+  body.appendChild(section);
+}
+
+// ── show port detail (click on pin) ──────────────────────
+
+function _devShowPortDetail(id, node, portKey) {
+  _devShowDetail(id, node);
+  requestAnimationFrame(() => {
+    const panel = document.getElementById('devdetail' + id);
+    const sec = panel?.querySelector(`.dev-pp-section[data-portkey="${portKey}"]`);
+    if (!sec) return;
+    sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    sec.classList.add('dev-pp-focus');
+    setTimeout(() => sec.classList.remove('dev-pp-focus'), 1200);
+  });
+}
+
+// ── add port instance to controller ──────────────────────
+
+function _devAddPortInstance(id, node, type) {
+  if (!node.portDefs) node.portDefs = _devGetPortDefs(node);
+  if (!node.portParams) node.portParams = {};
+  // generate unique key
+  const existing = node.portDefs.filter(pd => pd.type === type).length;
+  const base = type.replace(/\s+/g, '');
+  const key  = base + '-' + (existing + 1);
+  const label = type.replace(' 485', ' 485') + '-' + (existing + 1);
+  node.portDefs.push({ key, type, label });
+  node.portParams[key] = _devDefaultPortParams(type);
+  _devRebuildCtrlNode(id, node);
+  _devSave(id);
+}
+
+// ── rebuild controller node element in canvas ─────────────
+
+function _devRebuildCtrlNode(id, node) {
+  const el = document.getElementById('dnode' + id + '_' + node.id);
+  if (!el) return;
+  const canvas = document.getElementById('devcvs' + id);
+  const data   = _devData(id);
+  const cat    = DEV_CONTROLLERS.find(c => c.model === node.model);
+  const addable = cat?.addable || [];
+  const portDefs = _devGetPortDefs(node);
+
+  const portRows = portDefs.map(pd => {
+    const ps  = DEV_PORTS[pd.type] || {};
+    const col = ps.color || '#94a3b8';
+    const connected = data.edges.some(e =>
+      (e.fromId === node.id && e.fromPort === pd.key) ||
+      (e.toId   === node.id && e.toPort   === pd.key)
+    );
+    return `<div class="dev-ctrl-port" data-portkey="${pd.key}">
+      <span class="dev-ctrl-port-led${connected ? ' active' : ''}" style="background:${connected ? col : 'transparent'};border-color:${col}40"></span>
+      <span class="dev-ctrl-port-lbl" style="color:${col}">${pd.label}</span>
+      <div class="dev-port" data-port="${pd.key}" style="background:${col};border-color:${col}40"></div>
+    </div>`;
+  }).join('');
+
+  const portsDiv = el.querySelector('.dev-ctrl-ports');
+  if (portsDiv) portsDiv.innerHTML = portRows;
+
+  // re-attach port drag listeners to newly rendered pins
+  _devSetupPortPins(id, node, el, canvas, data);
+  _devRenderEdges(id);
+}
+
+// ── refresh controller LED statuses ──────────────────────
+
+function _devRefreshCtrlLeds(id, node, data) {
+  const el = document.getElementById('dnode' + id + '_' + node.id);
+  if (!el) return;
+  _devGetPortDefs(node).forEach(pd => {
+    const connected = data.edges.some(e =>
+      (e.fromId === node.id && e.fromPort === pd.key) ||
+      (e.toId   === node.id && e.toPort   === pd.key)
+    );
+    const led = el.querySelector(`.dev-ctrl-port[data-portkey="${pd.key}"] .dev-ctrl-port-led`);
+    const ps  = DEV_PORTS[pd.type] || {};
+    const col = ps.color || '#94a3b8';
+    if (led) {
+      led.style.background = connected ? col : 'transparent';
+      led.classList.toggle('active', connected);
+    }
+  });
+}
+
+// ── attach port-pin drag+click listeners ─────────────────
+
+function _devSetupPortPins(id, node, el, canvas, data) {
+  el.querySelectorAll('.dev-port').forEach(portEl => {
+    if (portEl.dataset.lsnr) return;
+    portEl.dataset.lsnr = '1';
+    portEl.addEventListener('mousedown', e => {
+      e.stopPropagation();
+      const fromPort = portEl.dataset.port;
+      const fp  = _devPortPos(el, fromPort, canvas);
+      const svg = document.getElementById('devsvg' + id);
+      let tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+      tempLine.setAttribute('class', 'dev-temp-line');
+      svg.appendChild(tempLine);
+      let moved = 0, px = e.clientX, py = e.clientY;
+
+      function onConnMove(ev) {
+        if (!tempLine) return;
+        moved += Math.abs(ev.clientX - px) + Math.abs(ev.clientY - py);
+        px = ev.clientX; py = ev.clientY;
+        const cr = canvas.getBoundingClientRect();
+        tempLine.setAttribute('d', `M ${fp.x} ${fp.y} L ${ev.clientX - cr.left} ${ev.clientY - cr.top}`);
+      }
+
+      function onConnUp(ev) {
+        document.removeEventListener('mousemove', onConnMove);
+        document.removeEventListener('mouseup',   onConnUp);
+        tempLine?.remove(); tempLine = null;
+
+        const elements = document.elementsFromPoint(ev.clientX, ev.clientY);
+        const targetEl = elements.find(el2 => el2.classList.contains('dev-node') && el2 !== el);
+
+        if (!targetEl) {
+          if (moved < 5 && node.ntype === 'controller') _devShowPortDetail(id, node, fromPort);
+          return;
+        }
+        const cr  = canvas.getBoundingClientRect();
+        const mx  = ev.clientX - cr.left;
+        const my  = ev.clientY - cr.top;
+        const tId = targetEl.id.replace('dnode' + id + '_', '');
+        const toPort = _devNearestPort(targetEl, mx, my, canvas);
+
+        if (data.edges.some(e2 => e2.fromId === node.id && e2.toId === tId && e2.fromPort === fromPort && e2.toPort === toPort)) return;
+        data.edges.push({ id: 'de' + Date.now(), fromId: node.id, fromPort, toId: tId, toPort });
+        _devRenderEdges(id);
+        _devUpdateCount(id);
+        _devSave(id);
+      }
+      document.addEventListener('mousemove', onConnMove);
+      document.addEventListener('mouseup',   onConnUp);
+    });
+  });
 }
 
 // ── KNX detail panel renderer ────────────────────────────
@@ -620,22 +1032,29 @@ function _devBuildNodeEl(id, node) {
 
   // inner HTML by type
   if (node.ntype === 'controller') {
-    const cat = DEV_CONTROLLERS.find(c => c.model === node.model);
-    const ports = cat ? cat.ports : [];
-    const portRows = ports.map(p => {
-      const ps  = DEV_PORTS[p] || {};
+    if (!node.portDefs)   node.portDefs   = _devGetPortDefs(node);
+    if (!node.portParams) node.portParams = {};
+    node.portDefs.forEach(pd => {
+      if (!node.portParams[pd.key]) node.portParams[pd.key] = _devDefaultPortParams(pd.type);
+    });
+
+    const portDefs = node.portDefs;
+    const portRows = portDefs.map(pd => {
+      const ps  = DEV_PORTS[pd.type] || {};
       const col = ps.color || '#94a3b8';
-      return `<div class="dev-ctrl-port">
-        <span class="dev-ctrl-port-lbl" style="color:${col}">${p}</span>
-        <div class="dev-port" data-port="${p}" style="background:${col};border-color:${col}40"></div>
+      return `<div class="dev-ctrl-port" data-portkey="${pd.key}">
+        <span class="dev-ctrl-port-led" style="background:transparent;border-color:${col}40"></span>
+        <span class="dev-ctrl-port-lbl" style="color:${col}">${pd.label}</span>
+        <div class="dev-port" data-port="${pd.key}" style="background:${col};border-color:${col}40"></div>
       </div>`;
     }).join('');
+
     el.innerHTML = `
       <div class="dev-ctrl-header">
         <div class="dev-node-model">${node.label || node.model}</div>
         <div class="dev-node-brand">${node.brand}</div>
       </div>
-      ${ports.length ? `<div class="dev-ctrl-ports">${portRows}</div>` : ''}
+      <div class="dev-ctrl-ports">${portRows}</div>
       <button class="dev-node-del" title="Elimina">✕</button>`;
   } else if (node.ntype === 'port') {
     el.innerHTML = `
@@ -744,62 +1163,8 @@ function _devBuildNodeEl(id, node) {
     _devSave(id);
   });
 
-  // ── port drag → connect ──
-  el.querySelectorAll('.dev-port').forEach(portEl => {
-    portEl.addEventListener('mousedown', e => {
-      e.stopPropagation();
-      const fromPort = portEl.dataset.port;
-      const fp = _devPortPos(el, fromPort, canvas);
-      const svg = document.getElementById('devsvg' + id);
-      let tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      tempLine.setAttribute('class', 'dev-temp-line');
-      svg.appendChild(tempLine);
-
-      function onConnMove(ev) {
-        if (!tempLine) return;
-        const cr = canvas.getBoundingClientRect();
-        const mx = ev.clientX - cr.left;
-        const my = ev.clientY - cr.top;
-        tempLine.setAttribute('d', `M ${fp.x} ${fp.y} L ${mx} ${my}`);
-      }
-
-      function onConnUp(ev) {
-        document.removeEventListener('mousemove', onConnMove);
-        document.removeEventListener('mouseup',   onConnUp);
-        tempLine?.remove(); tempLine = null;
-
-        const elements = document.elementsFromPoint(ev.clientX, ev.clientY);
-        const targetEl = elements.find(el2 =>
-          el2.classList.contains('dev-node') && el2 !== el
-        );
-        if (!targetEl) return;
-
-        const cr = canvas.getBoundingClientRect();
-        const mx = ev.clientX - cr.left;
-        const my = ev.clientY - cr.top;
-        const targetNodeId = targetEl.id.replace('dnode' + id + '_', '');
-        const toPort = _devNearestPort(targetEl, mx, my, canvas);
-
-        const exists = data.edges.some(e2 =>
-          e2.fromId === node.id && e2.toId === targetNodeId &&
-          e2.fromPort === fromPort && e2.toPort === toPort
-        );
-        if (exists) return;
-
-        data.edges.push({
-          id: 'de' + Date.now(),
-          fromId: node.id, fromPort,
-          toId: targetNodeId, toPort,
-        });
-        _devRenderEdges(id);
-        _devUpdateCount(id);
-        _devSave(id);
-      }
-
-      document.addEventListener('mousemove', onConnMove);
-      document.addEventListener('mouseup',   onConnUp);
-    });
-  });
+  // ── port drag → connect (+ click → configure) ──
+  _devSetupPortPins(id, node, el, canvas, data);
 
   canvas.appendChild(el);
 
@@ -817,14 +1182,21 @@ function _devAddController(id, model) {
   const cat  = DEV_CONTROLLERS.find(c => c.model === model) || DEV_CONTROLLERS[0];
   const canvas = document.getElementById('devcvs' + id);
   const cr = canvas?.getBoundingClientRect();
+
+  const portDefs = (cat.portDefs || []).map(pd => ({ ...pd }));
+  const portParams = {};
+  portDefs.forEach(pd => { portParams[pd.key] = _devDefaultPortParams(pd.type); });
+
   const node = {
     id: 'dc' + Date.now(),
     ntype: 'controller',
     model: cat.model,
     brand: cat.brand,
     label: '',
+    portDefs,
+    portParams,
     x: 60 + Math.random() * Math.max(100, (cr?.width || 400) - 300),
-    y: 200 + Math.random() * Math.max(60, (cr?.height || 300) - 300),
+    y: 60 + Math.random() * Math.max(60, (cr?.height || 300) - 200),
   };
   data.nodes.push(node);
   _devBuildNodeEl(id, node);

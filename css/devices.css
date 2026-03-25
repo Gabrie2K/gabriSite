@@ -606,6 +606,138 @@
   accent-color: #22d3ee;
 }
 
+/* ── LED status indicator on port rows ── */
+.dev-ctrl-port-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.2);
+  flex-shrink: 0;
+  transition: background .3s, box-shadow .3s;
+}
+.dev-ctrl-port-led.active {
+  box-shadow: 0 0 5px currentColor;
+}
+
+/* ── port compartments in detail panel ── */
+.dev-pp-section {
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  overflow: hidden;
+  background: rgba(255,255,255,.02);
+  transition: border-color .2s, background .2s;
+}
+.dev-pp-section.dev-pp-focus {
+  border-color: rgba(99,179,255,.6);
+  background: rgba(99,179,255,.05);
+}
+
+.dev-pp-hdr {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 8px;
+  border-left: 3px solid transparent;
+  background: rgba(255,255,255,.03);
+  position: relative;
+}
+
+.dev-pp-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,.3);
+  flex-shrink: 0;
+  transition: background .3s;
+}
+
+.dev-pp-name {
+  font-size: .6rem;
+  font-weight: 700;
+  font-family: 'Space Mono', monospace;
+}
+
+.dev-pp-type {
+  font-size: .44rem;
+  color: var(--dim);
+  opacity: .6;
+  flex: 1;
+}
+
+.dev-pp-status {
+  font-size: .44rem;
+  color: var(--dim);
+  opacity: .55;
+  white-space: nowrap;
+}
+
+.dev-pp-del {
+  width: 14px;
+  height: 14px;
+  background: rgba(255,95,87,.4);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: .42rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity .12s;
+  flex-shrink: 0;
+}
+.dev-pp-hdr:hover .dev-pp-del { opacity: 1; }
+.dev-pp-del:hover { background: rgba(255,95,87,.8) !important; }
+
+.dev-pp-fields {
+  padding: 6px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dev-pp-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dev-pp-lbl {
+  font-size: .46rem;
+  color: var(--dim);
+  width: 88px;
+  flex-shrink: 0;
+  opacity: .8;
+}
+
+.dev-pp-ctrl {
+  flex: 1;
+  font-size: .5rem !important;
+  padding: 3px 5px !important;
+}
+
+/* ── add port row in detail panel ── */
+.dev-pp-addrow {
+  display: flex;
+  gap: 5px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+
+.dev-pp-addsel {
+  flex: 1;
+  font-size: .5rem !important;
+  padding: 3px 5px !important;
+}
+
+.dev-pp-addbtn {
+  flex-shrink: 0;
+  width: auto;
+  padding: 4px 8px !important;
+}
+
 /* KNX device nodes get a cyan tint */
 .dev-node.device.knx-device {
   border-color: rgba(34,211,238,.4);
