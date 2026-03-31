@@ -9,13 +9,14 @@
 
 const DEV_CONTROLLERS = [
   {
-    model: 'EHC 602', brand: 'Coster',
+    model: 'EHC 602', brand: 'Coster', panel: true,
     portDefs: [
-      { key: 'RS485-1',  type: 'RS 485',    label: 'RS485-1' },
-      { key: 'RS485-2',  type: 'RS 485',    label: 'RS485-2' },
-      { key: 'M-Bus',    type: 'M-Bus',     label: 'M-Bus' },
-      { key: 'Radio868', type: 'Radio 868', label: 'Radio 868' },
-      { key: 'DALI',     type: 'DALI',      label: 'DALI' },
+      { key: 'M-Bus',   type: 'M-Bus',    label: 'M-Bus',   side: 'top',    pos: 0.20 },
+      { key: 'RS485-1', type: 'RS 485',   label: 'RS485-1', side: 'bottom', pos: 0.12 },
+      { key: 'RS485-2', type: 'RS 485',   label: 'RS485-2', side: 'bottom', pos: 0.28 },
+      { key: 'C-BUS',   type: 'C-BUS',    label: 'C-BUS',   side: 'bottom', pos: 0.44 },
+      { key: 'ETH-1',   type: 'Ethernet', label: 'ETH-1',   side: 'bottom', pos: 0.65 },
+      { key: 'ETH-2',   type: 'Ethernet', label: 'ETH-2',   side: 'bottom', pos: 0.82 },
     ],
     addable: ['RS 485'],
   },
@@ -88,6 +89,7 @@ const DEV_PORTS = {
   'Ethernet':   { color: '#94a3b8', bg: 'rgba(148,163,184,.1)', border: 'rgba(148,163,184,.4)' },
   'Wi-Fi':      { color: '#818cf8', bg: 'rgba(129,140,248,.1)', border: 'rgba(129,140,248,.4)' },
   'LTE':        { color: '#f87171', bg: 'rgba(248,113,113,.1)', border: 'rgba(248,113,113,.4)' },
+  'C-BUS':      { color: '#f97316', bg: 'rgba(249,115,22,.1)',  border: 'rgba(249,115,22,.4)'  },
 };
 
 // ── parametri default per tipo porta ─────────────────────
@@ -149,6 +151,10 @@ const DEV_PORT_PARAMS = {
     { key: 'apn',    label: 'APN',             type: 'text',   def: '' },
     { key: 'user',   label: 'Username',        type: 'text',   def: '' },
     { key: 'band',   label: 'Band',            type: 'text',   def: 'auto' },
+  ],
+  'C-BUS': [
+    { key: 'baud',   label: 'Baud Rate',       type: 'select', opts: ['9600','19200','38400'], def: '9600' },
+    { key: 'addr',   label: 'Addr. Range',     type: 'text',   def: '1–32' },
   ],
 };
 
@@ -292,6 +298,16 @@ function _devNearestPort(nodeEl, px, py, canvasEl) {
   return best || 'left';
 }
 
+// ── port side for bezier direction ──────────────────────────
+
+function _devPortSide(node, portKey) {
+  if (['top', 'right', 'bottom', 'left'].includes(portKey)) return portKey;
+  const defs = _devGetPortDefs(node);
+  const pd = defs.find(d => d.key === portKey);
+  if (pd?.side) return pd.side;
+  return 'right'; // default: card-style ports on right edge
+}
+
 function _devEdgePath(x1, y1, fromPort, x2, y2, toPort) {
   const d = Math.max(40, Math.hypot(x2 - x1, y2 - y1) * 0.4);
   const dir = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] };
@@ -327,14 +343,20 @@ function _devRenderEdges(id) {
 
     const fp = _devPortPos(fromEl, edge.fromPort, canvas);
     const tp = _devPortPos(toEl,   edge.toPort,   canvas);
-    const d  = _devEdgePath(fp.x, fp.y, edge.fromPort, tp.x, tp.y, edge.toPort);
 
-    // Determine edge color from the connected port type
+    // Determine node data for bezier direction and edge color
     const fromNode = data.nodes.find(n => n.id === edge.fromId);
     const toNode   = data.nodes.find(n => n.id === edge.toId);
+    const fromSide = fromNode ? _devPortSide(fromNode, edge.fromPort) : edge.fromPort;
+    const toSide   = toNode   ? _devPortSide(toNode,   edge.toPort)   : edge.toPort;
+    const d  = _devEdgePath(fp.x, fp.y, fromSide, tp.x, tp.y, toSide);
+
+    // Determine edge color from the connected port type
+    const fromPd = fromNode?.portDefs?.find(pd => pd.key === edge.fromPort);
+    const toPd   = toNode?.portDefs?.find(pd => pd.key === edge.toPort);
     let portType = null;
-    if (fromNode?.ntype === 'controller') portType = edge.fromPort;
-    else if (toNode?.ntype === 'controller') portType = edge.toPort;
+    if (fromNode?.ntype === 'controller') portType = fromPd?.type;
+    else if (toNode?.ntype === 'controller') portType = toPd?.type;
     else if (fromNode?.ntype === 'port') portType = fromNode.portType;
     else if (toNode?.ntype === 'port')   portType = toNode.portType;
     const edgeColor = (portType && DEV_PORTS[portType]?.color) || null;
@@ -625,12 +647,19 @@ function _devShowPortDetail(id, node, portKey) {
 function _devAddPortInstance(id, node, type) {
   if (!node.portDefs) node.portDefs = _devGetPortDefs(node);
   if (!node.portParams) node.portParams = {};
-  // generate unique key
   const existing = node.portDefs.filter(pd => pd.type === type).length;
-  const base = type.replace(/\s+/g, '');
-  const key  = base + '-' + (existing + 1);
-  const label = type.replace(' 485', ' 485') + '-' + (existing + 1);
-  node.portDefs.push({ key, type, label });
+  const base  = type.replace(/\s+/g, '');
+  const key   = base + '-' + (existing + 1);
+  const label = type + '-' + (existing + 1);
+  const cat   = DEV_CONTROLLERS.find(c => c.model === node.model);
+  if (cat?.panel) {
+    // Auto-place new ports on bottom strip
+    const btmPorts = node.portDefs.filter(pd => pd.side === 'bottom');
+    const pos = Math.min(0.90, 0.10 + btmPorts.length * 0.18);
+    node.portDefs.push({ key, type, label, side: 'bottom', pos });
+  } else {
+    node.portDefs.push({ key, type, label });
+  }
   node.portParams[key] = _devDefaultPortParams(type);
   _devRebuildCtrlNode(id, node);
   _devSave(id);
@@ -644,25 +673,45 @@ function _devRebuildCtrlNode(id, node) {
   const canvas = document.getElementById('devcvs' + id);
   const data   = _devData(id);
   const cat    = DEV_CONTROLLERS.find(c => c.model === node.model);
-  const addable = cat?.addable || [];
   const portDefs = _devGetPortDefs(node);
 
-  const portRows = portDefs.map(pd => {
-    const ps  = DEV_PORTS[pd.type] || {};
-    const col = ps.color || '#94a3b8';
-    const connected = data.edges.some(e =>
-      (e.fromId === node.id && e.fromPort === pd.key) ||
-      (e.toId   === node.id && e.toPort   === pd.key)
-    );
-    return `<div class="dev-ctrl-port" data-portkey="${pd.key}">
-      <span class="dev-ctrl-port-led${connected ? ' active' : ''}" style="background:${connected ? col : 'transparent'};border-color:${col}40"></span>
-      <span class="dev-ctrl-port-lbl" style="color:${col}">${pd.label}</span>
-      <div class="dev-port" data-port="${pd.key}" style="background:${col};border-color:${col}40"></div>
-    </div>`;
-  }).join('');
-
-  const portsDiv = el.querySelector('.dev-ctrl-ports');
-  if (portsDiv) portsDiv.innerHTML = portRows;
+  if (cat?.panel) {
+    // Rebuild strip content only — preserves face, delete button and handlers
+    const topPorts = portDefs.filter(pd => pd.side === 'top');
+    const btmPorts = portDefs.filter(pd => pd.side === 'bottom');
+    const topStrip = el.querySelector('.dev-panel-strip-top');
+    const btmStrip = el.querySelector('.dev-panel-strip-btm');
+    if (topStrip) topStrip.innerHTML = topPorts.map(pd => _devPtermHTML(pd)).join('');
+    if (btmStrip) btmStrip.innerHTML = btmPorts.map(pd => _devPtermHTML(pd)).join('');
+    // Also rebuild LED rows in face
+    const ledsDiv = el.querySelector('.dev-panel-face-leds');
+    if (ledsDiv) {
+      ledsDiv.innerHTML = portDefs.map(pd => {
+        const ps  = DEV_PORTS[pd.type] || {};
+        const col = ps.color || '#94a3b8';
+        return `<div class="dev-panel-led-row">
+          <span class="dev-panel-led" data-ledkey="${pd.key}" style="border-color:${col}88"></span>
+          <span class="dev-panel-led-lbl" style="color:${col}bb">${pd.label}</span>
+        </div>`;
+      }).join('');
+    }
+  } else {
+    const portRows = portDefs.map(pd => {
+      const ps  = DEV_PORTS[pd.type] || {};
+      const col = ps.color || '#94a3b8';
+      const connected = data.edges.some(e =>
+        (e.fromId === node.id && e.fromPort === pd.key) ||
+        (e.toId   === node.id && e.toPort   === pd.key)
+      );
+      return `<div class="dev-ctrl-port" data-portkey="${pd.key}">
+        <span class="dev-ctrl-port-led${connected ? ' active' : ''}" style="background:${connected ? col : 'transparent'};border-color:${col}40"></span>
+        <span class="dev-ctrl-port-lbl" style="color:${col}">${pd.label}</span>
+        <div class="dev-port" data-port="${pd.key}" style="background:${col};border-color:${col}40"></div>
+      </div>`;
+    }).join('');
+    const portsDiv = el.querySelector('.dev-ctrl-ports');
+    if (portsDiv) portsDiv.innerHTML = portRows;
+  }
 
   // re-attach port drag listeners to newly rendered pins
   _devSetupPortPins(id, node, el, canvas, data);
@@ -674,17 +723,30 @@ function _devRebuildCtrlNode(id, node) {
 function _devRefreshCtrlLeds(id, node, data) {
   const el = document.getElementById('dnode' + id + '_' + node.id);
   if (!el) return;
+  const isPanel = el.classList.contains('dev-panel');
   _devGetPortDefs(node).forEach(pd => {
     const connected = data.edges.some(e =>
       (e.fromId === node.id && e.fromPort === pd.key) ||
       (e.toId   === node.id && e.toPort   === pd.key)
     );
-    const led = el.querySelector(`.dev-ctrl-port[data-portkey="${pd.key}"] .dev-ctrl-port-led`);
     const ps  = DEV_PORTS[pd.type] || {};
     const col = ps.color || '#94a3b8';
-    if (led) {
-      led.style.background = connected ? col : 'transparent';
-      led.classList.toggle('active', connected);
+    if (isPanel) {
+      // Port dot glow on strip
+      const portDot = el.querySelector(`.dev-port[data-port="${CSS.escape(pd.key)}"]`);
+      if (portDot) portDot.style.boxShadow = connected ? `0 0 7px ${col}, 0 0 3px ${col}` : 'none';
+      // Face LED indicator
+      const faceLed = el.querySelector(`.dev-panel-led[data-ledkey="${CSS.escape(pd.key)}"]`);
+      if (faceLed) {
+        faceLed.style.background  = connected ? col : 'transparent';
+        faceLed.style.boxShadow   = connected ? `0 0 5px ${col}` : 'none';
+      }
+    } else {
+      const led = el.querySelector(`.dev-ctrl-port[data-portkey="${pd.key}"] .dev-ctrl-port-led`);
+      if (led) {
+        led.style.background = connected ? col : 'transparent';
+        led.classList.toggle('active', connected);
+      }
     }
   });
 }
@@ -1009,6 +1071,46 @@ function _devRefreshNodeEl(id, node) {
   }
 }
 
+// ── panel (DIN-rail) HTML helpers ────────────────────────
+
+function _devPtermHTML(pd) {
+  const ps  = DEV_PORTS[pd.type] || {};
+  const col = ps.color || '#94a3b8';
+  return `<div class="dev-pterm" style="left:${pd.pos * 100}%" data-termkey="${pd.key}">
+    <div class="dev-port" data-port="${pd.key}" style="background:${col};border-color:${col}66" title="${pd.label}"></div>
+    <span class="dev-pterm-lbl" style="color:${col}">${pd.label}</span>
+  </div>`;
+}
+
+function _devPanelHTML(node, cat) {
+  const portDefs = node.portDefs || [];
+  const topPorts = portDefs.filter(pd => pd.side === 'top');
+  const btmPorts = portDefs.filter(pd => pd.side === 'bottom');
+  const topHTML  = topPorts.map(pd => _devPtermHTML(pd)).join('');
+  const btmHTML  = btmPorts.map(pd => _devPtermHTML(pd)).join('');
+
+  const ledsHTML = portDefs.map(pd => {
+    const ps  = DEV_PORTS[pd.type] || {};
+    const col = ps.color || '#94a3b8';
+    return `<div class="dev-panel-led-row">
+      <span class="dev-panel-led" data-ledkey="${pd.key}" style="border-color:${col}88"></span>
+      <span class="dev-panel-led-lbl" style="color:${col}bb">${pd.label}</span>
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="dev-panel-strip dev-panel-strip-top">${topHTML}</div>
+    <div class="dev-panel-face">
+      <div class="dev-panel-face-leds">${ledsHTML}</div>
+      <div class="dev-panel-face-id">
+        <span class="dev-node-brand">${node.brand}</span>
+        <span class="dev-node-model">${node.label || node.model}</span>
+      </div>
+    </div>
+    <div class="dev-panel-strip dev-panel-strip-btm">${btmHTML}</div>
+    <button class="dev-node-del" title="Elimina">✕</button>`;
+}
+
 // ── build node element ───────────────────────────────────
 
 function _devBuildNodeEl(id, node) {
@@ -1037,24 +1139,30 @@ function _devBuildNodeEl(id, node) {
       if (!node.portParams[pd.key]) node.portParams[pd.key] = _devDefaultPortParams(pd.type);
     });
 
-    const portDefs = node.portDefs;
-    const portRows = portDefs.map(pd => {
-      const ps  = DEV_PORTS[pd.type] || {};
-      const col = ps.color || '#94a3b8';
-      return `<div class="dev-ctrl-port" data-portkey="${pd.key}">
-        <span class="dev-ctrl-port-led" style="background:transparent;border-color:${col}40"></span>
-        <span class="dev-ctrl-port-lbl" style="color:${col}">${pd.label}</span>
-        <div class="dev-port" data-port="${pd.key}" style="background:${col};border-color:${col}40"></div>
-      </div>`;
-    }).join('');
+    const cat = DEV_CONTROLLERS.find(c => c.model === node.model);
+    if (cat?.panel) {
+      el.classList.add('dev-panel');
+      el.innerHTML = _devPanelHTML(node, cat);
+    } else {
+      const portDefs = node.portDefs;
+      const portRows = portDefs.map(pd => {
+        const ps  = DEV_PORTS[pd.type] || {};
+        const col = ps.color || '#94a3b8';
+        return `<div class="dev-ctrl-port" data-portkey="${pd.key}">
+          <span class="dev-ctrl-port-led" style="background:transparent;border-color:${col}40"></span>
+          <span class="dev-ctrl-port-lbl" style="color:${col}">${pd.label}</span>
+          <div class="dev-port" data-port="${pd.key}" style="background:${col};border-color:${col}40"></div>
+        </div>`;
+      }).join('');
 
-    el.innerHTML = `
-      <div class="dev-ctrl-header">
-        <div class="dev-node-model">${node.label || node.model}</div>
-        <div class="dev-node-brand">${node.brand}</div>
-      </div>
-      <div class="dev-ctrl-ports">${portRows}</div>
-      <button class="dev-node-del" title="Elimina">✕</button>`;
+      el.innerHTML = `
+        <div class="dev-ctrl-header">
+          <div class="dev-node-model">${node.label || node.model}</div>
+          <div class="dev-node-brand">${node.brand}</div>
+        </div>
+        <div class="dev-ctrl-ports">${portRows}</div>
+        <button class="dev-node-del" title="Elimina">✕</button>`;
+    }
   } else if (node.ntype === 'port') {
     el.innerHTML = `
       <div class="dev-node-porttype">${node.portType}</div>

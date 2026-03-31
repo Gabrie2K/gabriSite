@@ -746,3 +746,139 @@
 .dev-node.device.knx-device:hover {
   border-color: rgba(34,211,238,.7);
 }
+
+/* ══════════════════════════════════════════
+   PANEL — DIN-rail controller layout
+   ══════════════════════════════════════════ */
+
+.dev-node.controller.dev-panel {
+  min-width: 320px;
+  flex-direction: column;
+  overflow: visible;
+  padding: 0;
+  align-items: stretch;
+}
+
+/* ── Terminal strips (top / bottom) ── */
+.dev-panel-strip {
+  position: relative;
+  height: 34px;
+  width: 100%;
+  flex-shrink: 0;
+  background: rgba(3, 6, 20, .97);
+}
+.dev-panel-strip-top {
+  border-bottom: 1px solid rgba(59,130,246,.2);
+  border-radius: 4px 4px 0 0;
+}
+.dev-panel-strip-btm {
+  border-top: 1px solid rgba(59,130,246,.2);
+  border-radius: 0 0 4px 4px;
+}
+
+/* ── Individual terminal ── */
+.dev-pterm {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+.dev-panel-strip-top .dev-pterm {
+  flex-direction: column;
+  top: 4px;
+}
+.dev-panel-strip-btm .dev-pterm {
+  flex-direction: column-reverse;
+  bottom: 4px;
+}
+
+.dev-pterm-lbl {
+  font-size: .38rem;
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap;
+  line-height: 1;
+  margin: 2px 0;
+}
+
+/* ── Port dots on panel — always visible ── */
+.dev-panel .dev-port {
+  position: relative !important;
+  top: auto !important; left: auto !important;
+  right: auto !important; bottom: auto !important;
+  transform: none !important;
+  opacity: 1 !important;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  cursor: crosshair;
+  transition: transform .12s, box-shadow .3s;
+  flex-shrink: 0;
+}
+.dev-panel .dev-port:hover {
+  transform: scale(1.5) !important;
+}
+
+/* ── Device face ── */
+.dev-panel-face {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  background: linear-gradient(135deg, rgba(10,30,90,.98) 0%, rgba(20,50,140,.98) 100%);
+  border-top: 1px solid rgba(59,130,246,.15);
+  border-bottom: 1px solid rgba(59,130,246,.15);
+  min-height: 78px;
+  padding: 6px 10px;
+  gap: 10px;
+}
+
+/* Left column: status LED rows */
+.dev-panel-face-leds {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+}
+.dev-panel-led-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.dev-panel-led {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid;
+  flex-shrink: 0;
+  transition: background .3s, box-shadow .3s;
+}
+.dev-panel-led-lbl {
+  font-size: .42rem;
+  font-family: 'Space Mono', monospace;
+  white-space: nowrap;
+  line-height: 1;
+}
+
+/* Right column: brand + model */
+.dev-panel-face-id {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: flex-end;
+  flex-shrink: 0;
+  min-width: 72px;
+}
+.dev-panel-face-id .dev-node-brand {
+  font-size: .5rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  opacity: .55;
+  text-align: right;
+}
+.dev-panel-face-id .dev-node-model {
+  font-size: .82rem;
+  font-weight: 700;
+  text-align: right;
+  color: rgba(200,220,255,.92);
+}
