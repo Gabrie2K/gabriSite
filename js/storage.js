@@ -41,6 +41,7 @@ function _serializeWins() {
       item.collapsedSections = { ...w.collapsedSections };
     if (w.thoughts) item.thoughts = JSON.parse(JSON.stringify(w.thoughts));
     if (w.schemaData) item.schemaData = JSON.parse(JSON.stringify(w.schemaData));
+    if (w.devData)    item.devData    = JSON.parse(JSON.stringify(w.devData));
     if (w.pageData) {
       // strip image src from storage to avoid localStorage quota issues with large images
       // images are re-attached via file picker; only text blocks are persisted
@@ -133,6 +134,10 @@ function importState(state) {
         y: w.pos?.top  ? parseInt(String(w.pos.top ).replace('px','')) : undefined,
       };
       const newId = createWin(w.tpl || (w.type === 'map' ? 'Mappa' : 'Computer'), pos);
+      // devData deve essere disponibile PRIMA che initDevices giri via rAF
+      if (w.devData && WINS[newId]?.type === 'devices') {
+        WINS[newId].devData = w.devData;
+      }
       setTimeout(() => {
         const target = WINS[newId];
         if (!target) return;
@@ -185,6 +190,9 @@ function importState(state) {
         }
         if (w.schemaData && target.type === 'schema') {
           target.schemaData = w.schemaData;
+        }
+        if (w.devData && target.type === 'devices') {
+          target.devData = w.devData;
         }
         if (w.pageData && target.type === 'page') {
           target.pageData = w.pageData;
