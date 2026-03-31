@@ -1,0 +1,119 @@
+/* Stili del Contenitore Principale */
+.panel-container {
+  background-color: #0b131e;
+  border: 1px solid #1c2b3e;
+  border-radius: 4px;
+  width: 280px;
+  padding: 15px;
+  font-family: 'Courier New', Courier, monospace;
+  color: #8b9bb4;
+  /* Rimuovi i commenti sotto se vuoi posizionarlo sopra il 3D */
+  /* position: absolute; */
+  /* top: 20px; */
+  /* right: 20px; */
+  /* z-index: 100; */
+}
+
+/* Intestazione */
+.panel-title {
+  color: #fca311;
+  font-weight: bold;
+  font-size: 16px;
+  display: block;
+  margin-bottom: 15px;
+}
+
+/* Stile dei Tab */
+.panel-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+  border-bottom: 1px solid #1c2b3e;
+  padding-bottom: 10px;
+}
+
+.tab-btn {
+  background: none;
+  border: 1px solid transparent;
+  color: #8b9bb4;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  padding: 5px;
+  transition: all 0.2s;
+}
+
+.tab-btn:hover {
+  color: #55ccee;
+}
+
+.tab-btn.active {
+  color: #fca311;
+  border: 1px solid #fca311;
+  background-color: rgba(252, 163, 17, 0.1);
+}
+
+/* Gestione dei Contenuti (Nascondi/Mostra) */
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
+
+/* Stile Riga Dati (Tab Info) */
+.data-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  font-size: 14px;
+}
+.data-row span:last-child {
+  color: #ffffff;
+}
+
+/* Pulsanti Azione */
+.action-buttons {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.action-btn {
+  background: transparent;
+  padding: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 3px;
+}
+.btn-rotate {
+  color: #55ccee;
+  border: 1px solid #55ccee;
+}
+.btn-delete {
+  color: #ff4444;
+  border: 1px solid #ff4444;
+}
+
+/* Stile Lista Piani (Tab Planimetrie) */
+.floor-list {
+  list-style-type: none;
+  padding: 0;
+  margin: 0;
+}
+.floor-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px dashed #1c2b3e;
+  cursor: pointer;
+  color: #ffffff;
+  transition: all 0.2s;
+}
+.floor-item:hover {
+  background-color: rgba(85, 204, 238, 0.1);
+}
+.floor-link {
+  color: #ff4444;
+}
