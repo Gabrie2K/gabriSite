@@ -11,12 +11,12 @@ const DEV_CONTROLLERS = [
   {
     model: 'EHC 602', brand: 'Coster', panel: true,
     portDefs: [
-      { key: 'M-Bus',   type: 'M-Bus',    label: 'M-Bus',   side: 'top',    pos: 0.20 },
-      { key: 'RS485-1', type: 'RS 485',   label: 'RS485-1', side: 'bottom', pos: 0.12 },
-      { key: 'RS485-2', type: 'RS 485',   label: 'RS485-2', side: 'bottom', pos: 0.28 },
-      { key: 'C-BUS',   type: 'C-BUS',    label: 'C-BUS',   side: 'bottom', pos: 0.44 },
-      { key: 'ETH-1',   type: 'Ethernet', label: 'ETH-1',   side: 'bottom', pos: 0.65 },
-      { key: 'ETH-2',   type: 'Ethernet', label: 'ETH-2',   side: 'bottom', pos: 0.82 },
+      { key: 'M-Bus',   type: 'M-Bus',    label: 'M-Bus',   side: 'top',    pos: 0.20, pins: 4 },
+      { key: 'RS485-1', type: 'RS 485',   label: 'RS485-1', side: 'bottom', pos: 0.12, pins: 3 },
+      { key: 'RS485-2', type: 'RS 485',   label: 'RS485-2', side: 'bottom', pos: 0.28, pins: 3 },
+      { key: 'C-BUS',   type: 'C-BUS',    label: 'C-BUS',   side: 'bottom', pos: 0.44, pins: 3 },
+      { key: 'ETH-1',   type: 'Ethernet', label: 'ETH-1',   side: 'bottom', pos: 0.65, pins: 0 },
+      { key: 'ETH-2',   type: 'Ethernet', label: 'ETH-2',   side: 'bottom', pos: 0.82, pins: 0 },
     ],
     addable: ['RS 485'],
   },
@@ -90,6 +90,11 @@ const DEV_PORTS = {
   'Wi-Fi':      { color: '#818cf8', bg: 'rgba(129,140,248,.1)', border: 'rgba(129,140,248,.4)' },
   'LTE':        { color: '#f87171', bg: 'rgba(248,113,113,.1)', border: 'rgba(248,113,113,.4)' },
   'C-BUS':      { color: '#f97316', bg: 'rgba(249,115,22,.1)',  border: 'rgba(249,115,22,.4)'  },
+};
+
+// ── pin count defaults per port type (0 = ETH jack, no screw block) ──
+const DEV_PORT_DEFAULT_PINS = {
+  'RS 485': 3, 'M-Bus': 4, 'C-BUS': 3, 'Ethernet': 0,
 };
 
 // ── parametri default per tipo porta ─────────────────────
@@ -625,6 +630,63 @@ function _devRenderPortCompartment(id, node, pd, body, data) {
     section.appendChild(fields);
   }
 
+  // ── panel-only: pin count +/- and side toggle ──
+  const pcat = DEV_CONTROLLERS.find(c => c.model === node.model);
+  if (pcat?.panel && pd.type !== 'Ethernet') {
+    const pinRow = document.createElement('div');
+    pinRow.className = 'dev-pp-row dev-pp-pin-row';
+    const pinLbl = document.createElement('span');
+    pinLbl.className = 'dev-pp-lbl';
+    pinLbl.textContent = 'Pins';
+    const decBtn = document.createElement('button');
+    decBtn.className = 'dev-tb-btn dev-pp-pin-btn';
+    decBtn.textContent = '−';
+    const pinVal = document.createElement('span');
+    pinVal.className = 'dev-pp-pin-val';
+    pinVal.textContent = pd.pins ?? (DEV_PORT_DEFAULT_PINS[pd.type] ?? 2);
+    const incBtn = document.createElement('button');
+    incBtn.className = 'dev-tb-btn dev-pp-pin-btn';
+    incBtn.textContent = '+';
+    [decBtn, incBtn].forEach(btn => btn.addEventListener('mousedown', e => e.stopPropagation()));
+    decBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      pd.pins = Math.max(1, (pd.pins ?? 2) - 1);
+      pinVal.textContent = pd.pins;
+      _devRebuildCtrlNode(id, node);
+      _devSave(id);
+    });
+    incBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      pd.pins = Math.min(8, (pd.pins ?? 2) + 1);
+      pinVal.textContent = pd.pins;
+      _devRebuildCtrlNode(id, node);
+      _devSave(id);
+    });
+    pinRow.append(pinLbl, decBtn, pinVal, incBtn);
+    section.appendChild(pinRow);
+  }
+
+  if (pcat?.panel) {
+    const sideRow = document.createElement('div');
+    sideRow.className = 'dev-pp-row dev-pp-side-row';
+    const sideLbl = document.createElement('span');
+    sideLbl.className = 'dev-pp-lbl';
+    sideLbl.textContent = 'Lato';
+    const sideBtn = document.createElement('button');
+    sideBtn.className = 'dev-tb-btn dev-pp-side-btn';
+    sideBtn.textContent = pd.side === 'top' ? '▲ Top' : '▼ Bottom';
+    sideBtn.addEventListener('mousedown', e => e.stopPropagation());
+    sideBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      pd.side = (pd.side === 'top') ? 'bottom' : 'top';
+      _devRebuildCtrlNode(id, node);
+      _devSave(id);
+      _devShowDetail(id, node);
+    });
+    sideRow.append(sideLbl, sideBtn);
+    section.appendChild(sideRow);
+  }
+
   body.appendChild(section);
 }
 
@@ -655,8 +717,9 @@ function _devAddPortInstance(id, node, type) {
   if (cat?.panel) {
     // Auto-place new ports on bottom strip
     const btmPorts = node.portDefs.filter(pd => pd.side === 'bottom');
-    const pos = Math.min(0.90, 0.10 + btmPorts.length * 0.18);
-    node.portDefs.push({ key, type, label, side: 'bottom', pos });
+    const pos  = Math.min(0.90, 0.10 + btmPorts.length * 0.18);
+    const pins = DEV_PORT_DEFAULT_PINS[type] ?? 2;
+    node.portDefs.push({ key, type, label, side: 'bottom', pos, pins });
   } else {
     node.portDefs.push({ key, type, label });
   }
@@ -713,8 +776,14 @@ function _devRebuildCtrlNode(id, node) {
     if (portsDiv) portsDiv.innerHTML = portRows;
   }
 
-  // re-attach port drag listeners to newly rendered pins
+  // re-attach port drag listeners and terminal drag listeners
   _devSetupPortPins(id, node, el, canvas, data);
+  if (cat?.panel) {
+    const ts = el.querySelector('.dev-panel-strip-top');
+    const bs = el.querySelector('.dev-panel-strip-btm');
+    if (ts) _devSetupTermDrag(id, node, ts);
+    if (bs) _devSetupTermDrag(id, node, bs);
+  }
   _devRenderEdges(id);
 }
 
@@ -801,6 +870,36 @@ function _devSetupPortPins(id, node, el, canvas, data) {
       }
       document.addEventListener('mousemove', onConnMove);
       document.addEventListener('mouseup',   onConnUp);
+    });
+  });
+}
+
+// ── terminal block drag-to-reposition ────────────────────
+
+function _devSetupTermDrag(id, node, stripEl) {
+  stripEl.querySelectorAll('.dev-pterm-block').forEach(blockEl => {
+    if (blockEl.dataset.tdlsnr) return;
+    blockEl.dataset.tdlsnr = '1';
+    blockEl.addEventListener('mousedown', e => {
+      if (e.target.classList.contains('dev-port')) return;
+      e.stopPropagation(); // prevent node-level drag
+      const ptermEl = blockEl.closest('.dev-pterm');
+      const stripW  = stripEl.getBoundingClientRect().width;
+      const pd      = (node.portDefs || []).find(p => p.key === ptermEl?.dataset.termkey);
+      if (!pd || !stripW) return;
+      const startX = e.clientX, startPos = pd.pos;
+      function onMove(ev) {
+        pd.pos = Math.max(0.02, Math.min(0.97, startPos + (ev.clientX - startX) / stripW));
+        ptermEl.style.left = (pd.pos * 100) + '%';
+        _devRenderEdges(id);
+      }
+      function onUp() {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        _devSave(id);
+      }
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
     });
   });
 }
@@ -1074,10 +1173,17 @@ function _devRefreshNodeEl(id, node) {
 // ── panel (DIN-rail) HTML helpers ────────────────────────
 
 function _devPtermHTML(pd) {
-  const ps  = DEV_PORTS[pd.type] || {};
-  const col = ps.color || '#94a3b8';
+  const col  = DEV_PORTS[pd.type]?.color || '#94a3b8';
+  const pins = pd.pins ?? (DEV_PORT_DEFAULT_PINS[pd.type] ?? 2);
+  const isEth = (pins === 0);
+  const innerShape = isEth
+    ? `<div class="dev-pterm-jack" style="border-color:${col}88"></div>`
+    : Array.from({ length: pins }, () =>
+        `<div class="dev-pterm-pin" style="border-color:${col}66"></div>`
+      ).join('');
   return `<div class="dev-pterm" style="left:${pd.pos * 100}%" data-termkey="${pd.key}">
     <div class="dev-port" data-port="${pd.key}" style="background:${col};border-color:${col}66" title="${pd.label}"></div>
+    <div class="dev-pterm-block" data-termkey="${pd.key}">${innerShape}</div>
     <span class="dev-pterm-lbl" style="color:${col}">${pd.label}</span>
   </div>`;
 }
@@ -1199,6 +1305,7 @@ function _devBuildNodeEl(id, node) {
     if (e.target.classList.contains('dev-port')) return;
     if (e.target.classList.contains('dev-node-del')) return;
     if (e.target.tagName === 'INPUT') return;
+    if (e.target.closest('.dev-pterm')) return; // terminal block drag handles itself
     dragging = true;
     startX = e.clientX; startY = e.clientY;
     dx = node.x; dy = node.y;
@@ -1223,6 +1330,7 @@ function _devBuildNodeEl(id, node) {
   el.addEventListener('click', e => {
     if (e.target.classList.contains('dev-port')) return;
     if (e.target.classList.contains('dev-node-del')) return;
+    if (e.target.closest('.dev-pterm')) return; // terminal clicks don't open node detail
     e.stopPropagation();
     // deselect all
     canvas.querySelectorAll('.dev-node.selected').forEach(n => n.classList.remove('selected'));
@@ -1272,6 +1380,17 @@ function _devBuildNodeEl(id, node) {
 
   // ── port drag → connect (+ click → configure) ──
   _devSetupPortPins(id, node, el, canvas, data);
+
+  // ── terminal block drag-to-reposition (panel only) ──
+  if (node.ntype === 'controller') {
+    const _cat = DEV_CONTROLLERS.find(c => c.model === node.model);
+    if (_cat?.panel) {
+      const topStrip = el.querySelector('.dev-panel-strip-top');
+      const btmStrip = el.querySelector('.dev-panel-strip-btm');
+      if (topStrip) _devSetupTermDrag(id, node, topStrip);
+      if (btmStrip) _devSetupTermDrag(id, node, btmStrip);
+    }
+  }
 
   canvas.appendChild(el);
 
