@@ -134,6 +134,10 @@ function importState(state) {
         y: w.pos?.top  ? parseInt(String(w.pos.top ).replace('px','')) : undefined,
       };
       const newId = createWin(w.tpl || (w.type === 'map' ? 'Mappa' : 'Computer'), pos);
+      // devData deve essere disponibile PRIMA che initDevices giri via rAF
+      if (w.devData && WINS[newId]?.type === 'devices') {
+        WINS[newId].devData = w.devData;
+      }
       setTimeout(() => {
         const target = WINS[newId];
         if (!target) return;
