@@ -21,6 +21,18 @@ const DEV_CONTROLLERS = [
     addable: ['RS 485'],
   },
   {
+    model: 'ZBC 862', brand: 'Coster', panel: true,
+    portDefs: [
+      { key: 'IN',      type: 'Digital In',  label: 'IN 1-8',  side: 'top',    pos: 0.22, pins: 4 },
+      { key: 'V-OUT',   type: 'V-OUT',       label: 'V-OUT',   side: 'top',    pos: 0.48, pins: 3 },
+      { key: 'RS485-1', type: 'RS 485',      label: 'RS485-1', side: 'top',    pos: 0.67, pins: 3 },
+      { key: 'RS485-2', type: 'RS 485',      label: 'RS485-2', side: 'top',    pos: 0.82, pins: 3 },
+      { key: 'BAC',     type: 'BACnet MSTP', label: 'BACnet',  side: 'bottom', pos: 0.08, pins: 3 },
+      { key: 'DO',      type: 'Relay',       label: 'DO 1-6',  side: 'bottom', pos: 0.55, pins: 3 },
+    ],
+    addable: ['RS 485'],
+  },
+  {
     model: 'UCG 300', brand: 'Coster',
     portDefs: [
       { key: 'RS485-1',    type: 'RS 485',    label: 'RS485-1' },
@@ -90,11 +102,16 @@ const DEV_PORTS = {
   'Wi-Fi':      { color: '#818cf8', bg: 'rgba(129,140,248,.1)', border: 'rgba(129,140,248,.4)' },
   'LTE':        { color: '#f87171', bg: 'rgba(248,113,113,.1)', border: 'rgba(248,113,113,.4)' },
   'C-BUS':      { color: '#f97316', bg: 'rgba(249,115,22,.1)',  border: 'rgba(249,115,22,.4)'  },
+  'BACnet MSTP':{ color: '#f59e0b', bg: 'rgba(245,158,11,.1)', border: 'rgba(245,158,11,.4)' },
+  'Digital In': { color: '#06b6d4', bg: 'rgba(6,182,212,.1)',  border: 'rgba(6,182,212,.4)'  },
+  'V-OUT':      { color: '#84cc16', bg: 'rgba(132,204,22,.1)', border: 'rgba(132,204,22,.4)' },
+  'Relay':      { color: '#f43f5e', bg: 'rgba(244,63,94,.1)',  border: 'rgba(244,63,94,.4)'  },
 };
 
 // ── pin count defaults per port type (0 = ETH jack, no screw block) ──
 const DEV_PORT_DEFAULT_PINS = {
   'RS 485': 3, 'M-Bus': 4, 'C-BUS': 3, 'Ethernet': 0,
+  'BACnet MSTP': 3, 'Digital In': 4, 'V-OUT': 3, 'Relay': 3,
 };
 
 // ── parametri default per tipo porta ─────────────────────
@@ -160,6 +177,23 @@ const DEV_PORT_PARAMS = {
   'C-BUS': [
     { key: 'baud',   label: 'Baud Rate',       type: 'select', opts: ['9600','19200','38400'], def: '9600' },
     { key: 'addr',   label: 'Addr. Range',     type: 'text',   def: '1–32' },
+  ],
+  'BACnet MSTP': [
+    { key: 'devId',  label: 'Device ID',       type: 'text',   def: '1' },
+    { key: 'mac',    label: 'MAC Addr',        type: 'text',   def: '0' },
+    { key: 'baud',   label: 'Baud Rate',       type: 'select', opts: ['9600','19200','38400','76800'], def: '38400' },
+  ],
+  'Digital In': [
+    { key: 'type',   label: 'Input Type',      type: 'select', opts: ['Dry contact','Wet 12V','Wet 24V'], def: 'Dry contact' },
+    { key: 'logic',  label: 'Logic',           type: 'select', opts: ['NO','NC'], def: 'NO' },
+  ],
+  'V-OUT': [
+    { key: 'volt',   label: 'Voltage',         type: 'select', opts: ['12V','24V'], def: '24V' },
+    { key: 'imax',   label: 'Max current',     type: 'text',   def: '500mA' },
+  ],
+  'Relay': [
+    { key: 'type',   label: 'Contact',         type: 'select', opts: ['NO','NC','changeover'], def: 'changeover' },
+    { key: 'rating', label: 'Rating',          type: 'text',   def: '5A 250VAC' },
   ],
 };
 
