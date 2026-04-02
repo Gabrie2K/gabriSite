@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Oil Refinery Planner 3D</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;700&display=swap');
+:root {
+  --bg: #080c12; --panel: #0e1420; --border: #1c2a3e;
+  --accent: #e8a020; --accent2: #38bdf8; --text: #b8c8d8;
+  --muted: #3a4f65; --danger: #ef4444; --ok: #22c55e;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+
+/* Blocca comportamenti nativi del browser per drag/touch */
+body { 
+  background:var(--bg); color:var(--text); font-family:'Rajdhani',sans-serif; 
+  display:flex; height:100vh; overflow:hidden; 
+  user-select:none; -webkit-user-drag:none; touch-action:none; 
+}
+
+/* ─── SIDEBAR ─────────────────────────────── */
+#sidebar {
+  width:195px; min-width:195px;
+  background:var(--panel);
+  border-right:1px solid var(--border);
+  display:flex; flex-direction:column; z-index:10;
+}
+#sb-head {
+  padding:13px 12px 10px;
+  border-bottom:1px solid var(--border);
+}
+#sb-head h2 {
+  font-family:'Share Tech Mono',monospace;
+  font-size:10px; letter-spacing:3px; color:var(--accent); font-weight:400;
+}
+#sb-head p { font-size:9px; color:var(--muted); margin-top:3px; font-family:'Share Tech Mono',monospace; }
+#modules-list { flex:1; overflow-y:auto; padding:8px 7px; }
+#modules-list::-webkit-scrollbar { width:3px; }
+#modules-list::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+.cat { font-family:'Share Tech Mono',monospace; font-size:8px; letter-spacing:2px; color:var(--muted); padding:8px 3px 4px; text-transform:uppercase; }
+
+.mcard {
+  display:flex; align-items:center; gap:8px;
+  background:#111c2c; border:1px solid var(--border);
+  border-radius:4px; padding:8px 9px; margin-bottom:5px;
+  cursor:grab; transition:border-color .15s, background .15s, transform .1s;
+  touch-action:none; /* IMPORTANTE per Pointer Events su card */
+}
+.mcard:hover { border-color:var(--accent); background:rgba(232,160,32,.08); transform:translateX(2px); }
+.mcard:active { cursor:grabbing; }
+.mic {
+  width:28px; height:28px; border-radius:3px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:13px; flex-shrink:0;
+}
+.minfo h4 { font-size:11px; font-weight:700; color:var(--text); line-height:1.2; }
+.minfo p  { font-size:9px; color:var(--muted); font-family:'Share Tech Mono',monospace; margin-top:1px; }
+
+/* ─── CANVAS ──────────────────────────────── */
+#cv { flex:1; position:relative; overflow:hidden; }
+#cv canvas { display:block; touch-action:none; } /* IMPORTANTE per Pointer Events su canvas */
+
+/* ─── HUD ─────────────────────────────────── */
+#hud-tl {
+  position:absolute; top:12px; left:12px;
+  display:flex; gap:7px; pointer-events:none;
+}
+.hbadge {
+  background:rgba(14,20,32,.88);
+  border:1px solid var(--border);
+  border-radius:3px; padding:4px 9px;
+  font-family:'Share Tech Mono',monospace; font-size:9px; color:var(--muted);
+}
+.hbadge b { color:var(--accent); font-weight:400; }
+
+#hud-bl {
+  position:absolute; bottom:11px; left:50%; transform:translateX(-50%);
+  display:flex; gap:5px; pointer-events:none;
+}
+.hint {
+  background:rgba(14,20,32,.85);
+  border:1px solid var(--border);
+  border-radius:3px; padding:3px 7px;
+  font-family:'Share Tech Mono',monospace; font-size:8px; color:var(--muted);
+  display:flex; align-items:center; gap:4px;
+}
+.hint kbd {
+  background:var(--border); border-radius:2px;
+  padding:1px 4px; color:var(--text); font-size:8px;
+  font-family:'Share Tech Mono',monospace;
+}
+
+/* ─── SELECTED PANEL ──────────────────────── */
+#sel-panel {
+  position:absolute; top:12px; right:12px; width:175px;
+  background:rgba(14,20,32,.92);
+  border:1px solid var(--border); border-radius:4px; padding:11px;
+  font-family:'Share Tech Mono',monospace; display:none;
+  backdrop-filter:blur(3px);
+}
+#sel-panel h3 { color:var(--accent); font-size:10px; margin-bottom:9px; letter-spacing:1px; font-weight:400; }
+.prow { display:flex; justify-content:space-between; font-size:9px; color:var(--muted); margin-bottom:4px; }
+.prow span:last-child { color:var(--text); }
+.btn-del {
+  width:100%; margin-top:9px;
+  background:rgba(239,68,68,.08); border:1px solid var(--danger);
+  color:var(--danger); border-radius:3px; padding:5px;
+  cursor:pointer; font-size:9px; font-family:'Share Tech Mono',monospace;
+  letter-spacing:1px; transition:background .15s; pointer-events:all;
+}
+.btn-del:hover { background:rgba(239,68,68,.18); }
+.btn-rot {
+  width:100%; margin-top:5px;
+  background:rgba(56,189,248,.08); border:1px solid var(--accent2);
+  color:var(--accent2); border-radius:3px; padding:5px;
+  cursor:pointer; font-size:9px; font-family:'Share Tech Mono',monospace;
+  letter-spacing:1px; transition:background .15s; pointer-events:all;
+}
+.btn-rot:hover { background:rgba(56,189,248,.18); }
+
+/* ─── DRAG GHOST ──────────────────────────── */
+#drag-ghost {
+  position:fixed; pointer-events:none;
+  background:rgba(232,160,32,.12); border:1px solid var(--accent);
+  border-radius:4px; padding:5px 9px;
+  font-size:10px; font-family:'Share Tech Mono',monospace; color:var(--accent);
+  display:none; white-space:nowrap; z-index:9999;
+  transform:translate(-50%,-50%);
+}
+
+/* ─── COORD TOOLTIP ───────────────────────── */
+#coord-tip {
+  position:fixed; pointer-events:none;
+  background:rgba(14,20,32,.9); border:1px solid var(--accent2);
+  border-radius:3px; padding:3px 7px;
+  font-size:9px; font-family:'Share Tech Mono',monospace; color:var(--accent2);
+  display:none; white-space:nowrap; z-index:9999;
+}
+
+/* ─── MODE PILL ───────────────────────────── */
+#mode-pill {
+  position:absolute; top:12px; left:50%; transform:translateX(-50%);
+  background:rgba(232,160,32,.12); border:1px solid var(--accent);
+  border-radius:20px; padding:4px 14px;
+  font-size:9px; font-family:'Share Tech Mono',monospace; color:var(--accent);
+  pointer-events:none; display:none; letter-spacing:1px;
+}
+</style>
+</head>
+<body>
+
+<div id="sidebar">
+  <div id="sb-head">
+    <h2>⚙ REFINERY PLANNER</h2>
+    <p>drag → drop on grid</p>
+  </div>
+  <div id="modules-list">
+
+    <div class="cat">⛽ extraction</div>
+    <div class="mcard" data-type="PUMPJACK">
+      <div class="mic" style="background:rgba(232,160,32,.14)">🏗</div>
+      <div class="minfo"><h4>Pumpjack</h4><p>2×2 | pump</p></div>
+    </div>
+
+    <div class="cat">🏭 processing</div>
+    <div class="mcard" data-type="DISTILLATION">
+      <div class="mic" style="background:rgba(56,189,248,.12)">🗼</div>
+      <div class="minfo"><h4>Distillation Tower</h4><p>2×2 | 8h tall</p></div>
+    </div>
+    <div class="mcard" data-type="CRACKER">
+      <div class="mic" style="background:rgba(56,189,248,.12)">⚗</div>
+      <div class="minfo"><h4>Cracker Unit</h4><p>3×3 | FCC</p></div>
+    </div>
+    <div class="mcard" data-type="HEAT_EX">
+      <div class="mic" style="background:rgba(239,68,68,.12)">🌡</div>
+      <div class="minfo"><h4>Heat Exchanger</h4><p>3×1 | thermal</p></div>
+    </div>
+    <div class="mcard" data-type="BOILER">
+      <div class="mic" style="background:rgba(239,68,68,.12)">♨</div>
+      <div class="minfo"><h4>Boiler</h4><p>2×2 | steam</p></div>
+    </div>
+
+    <div class="cat">🛢 storage</div>
+    <div class="mcard" data-type="TANK_LG">
+      <div class="mic" style="background:rgba(34,197,94,.12)">🛢</div>
+      <div class="minfo"><h4>Storage Tank</h4><p>3×3 | crude</p></div>
+    </div>
+    <div class="mcard" data-type="TANK_SM">
+      <div class="mic" style="background:rgba(34,197,94,.12)">🪣</div>
+      <div class="minfo"><h4>Buffer Tank</h4><p>1×1 | buffer</p></div>
+    </div>
+
+    <div class="cat">🏢 infrastructure</div>
+    <div class="mcard" data-type="CTRL_ROOM">
+      <div class="mic" style="background:rgba(168,85,247,.14)">🖥</div>
+      <div class="minfo"><h4>Control Room</h4><p>3×2 | command</p></div>
+    </div>
+    <div class="mcard" data-type="FLARE">
+      <div class="mic" style="background:rgba(239,68,68,.12)">🔥</div>
+      <div class="minfo"><h4>Flare Stack</h4><p>1×1 | safety</p></div>
+    </div>
+    <div class="mcard" data-type="COOLING">
+      <div class="mic" style="background:rgba(56,189,248,.12)">☁</div>
+      <div class="minfo"><h4>Cooling Tower</h4><p>2×2 | cooling</p></div>
+    </div>
+    <div class="mcard" data-type="PIPE_H">
+      <div class="mic" style="background:rgba(100,116,139,.18)">━</div>
+      <div class="minfo"><h4>Pipe (H)</h4><p>2×1 | pipeline</p></div>
+    </div>
+    <div class="mcard" data-type="PIPE_CROSS">
+      <div class="mic" style="background:rgba(100,116,139,.18)">╋</div>
+      <div class="minfo"><h4>Pipe Cross</h4><p>1×1 | junction</p></div>
+    </div>
+
+    <div class="cat">hq</div>
+    <div class="mcard" data-type="HEADQUARTERS">
+      <div class="mic" style="background:rgba(168,85,247,.14)">🏢</div>
+      <div class="minfo"><h4>Company HQ</h4><p>3×3 | HQ 6 piani</p></div>
+    </div>
+  </div>
+</div>
+
+<div id="cv">
+  <div id="hud-tl">
+    <div class="hbadge">GRID <b>1u</b></div>
+    <div class="hbadge">MODULES <b id="mod-count">0</b></div>
+    <div class="hbadge">POS <b id="pos-disp">—</b></div>
+  </div>
+
+  <div id="mode-pill">⊕ PLACING — release to drop</div>
+
+  <div id="hud-bl">
+    <div class="hint"><kbd>LMB</kbd> select / orbit</div>
+    <div class="hint"><kbd>RMB</kbd> pan</div>
+    <div class="hint"><kbd>scroll</kbd> zoom</div>
+    <div class="hint"><kbd>R</kbd> rotate</div>
+    <div class="hint"><kbd>DEL</kbd> delete</div>
+    <div class="hint"><kbd>F</kbd> focus</div>
+    <div class="hint"><kbd>ESC</kbd> cancel</div>
+  </div>
+
+  <div id="sel-panel">
+    <h3 id="sel-name">—</h3>
+    <div class="prow"><span>grid X</span><span id="sel-x">—</span></div>
+    <div class="prow"><span>grid Z</span><span id="sel-z">—</span></div>
+    <div class="prow"><span>rotation</span><span id="sel-r">0°</span></div>
+    <div class="prow"><span>footprint</span><span id="sel-s">—</span></div>
+    <button class="btn-rot" id="btn-rot">[ ROTATE 90° ]</button>
+    <button class="btn-del" id="btn-del">[ DELETE ]</button>
+  </div>
+
+  <div id="drag-ghost"></div>
+  <div id="coord-tip"></div>
+</div>
+
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+// ══════════════════════════════════════════════════
+//  RENDERER + SCENE
+// ══════════════════════════════════════════════════
+const cv = document.getElementById('cv');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x080c12);
+scene.fog = new THREE.FogExp2(0x080c12, 0.016);
+
+const W = () => cv.clientWidth, H = () => cv.clientHeight;
+const camera = new THREE.PerspectiveCamera(42, W()/H(), 0.1, 600);
+camera.position.set(30, 30, 30);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W(), H());
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.15;
+cv.appendChild(renderer.domElement);
+renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
+
+// ══════════════════════════════════════════════════
+//  ORBIT CONTROLS
+// ══════════════════════════════════════════════════
+const orb = new THREE.OrbitControls(camera, renderer.domElement);
+// Controlli corretti: LMB ruota, RMB sposta
+orb.mouseButtons = { LEFT: THREE.MOUSE.ROTATE, MIDDLE: THREE.MOUSE.DOLLY, RIGHT: THREE.MOUSE.PAN };
+orb.enableDamping = true;
+orb.dampingFactor = 0.07;
+orb.minDistance = 5;
+orb.maxDistance = 120;
+orb.maxPolarAngle = Math.PI / 2.05;
+orb.target.set(0, 2, 0);
+
+// ══════════════════════════════════════════════════
+//  LIGHTS
+// ══════════════════════════════════════════════════
+scene.add(new THREE.AmbientLight(0x2040608, 1.8));
+
+const sun = new THREE.DirectionalLight(0xfff5e0, 2.6);
+sun.position.set(22, 45, 18);
+sun.castShadow = true;
+Object.assign(sun.shadow.mapSize, { width: 2048, height: 2048 });
+[-70, 70, -70, 70].forEach((v, i) => {
+  const k = ['left','right','top','bottom'][i]; sun.shadow.camera[k] = v;
+});
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 180;
+sun.shadow.bias = -0.001;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x4060a0, 0.9);
+fill.position.set(-20, 12, -20);
+scene.add(fill);
+
+// ══════════════════════════════════════════════════
+//  MILLIMETER GRID  (fine / medium / major)
+// ══════════════════════════════════════════════════
+(function buildGrid() {
+  const SIZE = 80, verts = [], cols = [];
+  const C = {
+    fine:  [0.06, 0.10, 0.16],
+    med:   [0.10, 0.18, 0.28],
+    major: [0.16, 0.30, 0.48],
+    axis:  [0.24, 0.44, 0.66]
+  };
+  for (let i = -SIZE/2; i <= SIZE/2; i++) {
+    const c = i === 0 ? C.axis : i % 10 === 0 ? C.major : i % 5 === 0 ? C.med : C.fine;
+    verts.push(-SIZE/2, 0, i, SIZE/2, 0, i);
+    cols.push(...c, ...c);
+    verts.push(i, 0, -SIZE/2, i, 0, SIZE/2);
+    cols.push(...c, ...c);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  geo.setAttribute('color',    new THREE.Float32BufferAttribute(cols, 3));
+  const mesh = new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ vertexColors: true }));
+  mesh.position.y = 0.002;
+  scene.add(mesh);
+
+  // ground plane
+  const gnd = new THREE.Mesh(
+    new THREE.PlaneGeometry(80, 80),
+    new THREE.MeshStandardMaterial({ color: 0x0a1018, roughness: 1, metalness: 0 })
+  );
+  gnd.rotation.x = -Math.PI/2;
+  gnd.receiveShadow = true;
+  scene.add(gnd);
+})();
+
+// ══════════════════════════════════════════════════
+//  SHARED MATERIALS
+// ══════════════════════════════════════════════════
+const M = {
+  steel:     new THREE.MeshStandardMaterial({ color:0x8fa4bb, metalness:0.72, roughness:0.38 }),
+  dksteel:   new THREE.MeshStandardMaterial({ color:0x3d5068, metalness:0.80, roughness:0.30 }),
+  yellow:    new THREE.MeshStandardMaterial({ color:0xe8a020, metalness:0.28, roughness:0.55 }),
+  orange:    new THREE.MeshStandardMaterial({ color:0xe06030, metalness:0.20, roughness:0.65 }),
+  red:       new THREE.MeshStandardMaterial({ color:0xef4444, metalness:0.20, roughness:0.75 }),
+  concrete:  new THREE.MeshStandardMaterial({ color:0x2e3d50, roughness:0.92, metalness:0.02 }),
+  glass:     new THREE.MeshStandardMaterial({ color:0x7dd3fc, metalness:0.12, roughness:0.08, transparent:true, opacity:0.65 }),
+  pipe:      new THREE.MeshStandardMaterial({ color:0x607080, metalness:0.92, roughness:0.18 }),
+  rust:      new THREE.MeshStandardMaterial({ color:0x7a3a18, roughness:0.88, metalness:0.12 }),
+};
+
+// helpers
+const B = (w,h,d,m) => new THREE.Mesh(new THREE.BoxGeometry(w,h,d), m);
+const Cyl = (r,h,s,m) => new THREE.Mesh(new THREE.CylinderGeometry(r,r,h,s||16), m);
+const Cone = (rt,rb,h,s,m) => new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,s||12), m);
+
+// ghost material
+const ghostOk  = new THREE.MeshStandardMaterial({ color:0x00e580, transparent:true, opacity:0.38 });
+const ghostBad = new THREE.MeshStandardMaterial({ color:0xef4444, transparent:true, opacity:0.38 });
+
+// ══════════════════════════════════════════════════
+//  MODULE DEFINITIONS
+// ══════════════════════════════════════════════════
+const DEFS = {
+
+  PUMPJACK: { name:'Pumpjack', size:[2,2], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(1.8,.18,1.8,M.concrete); m.position.y=.09; g.add(m);
+    m = B(.2,2.4,.2,M.steel); m.position.set(-.5,1.38,0); g.add(m);
+    [.45,-.45].forEach(z => {
+      m = B(.08,1.5,.08,M.dksteel); m.position.set(-.15,.95,z); m.rotation.z=.28; g.add(m);
+    });
+    m = B(1.55,.1,.1,M.yellow); m.position.set(.28,2.6,0); m.rotation.z=-.22; g.add(m);
+    m = B(.32,.42,.28,M.dksteel); m.position.set(-.72,2.42,0); g.add(m);
+    m = B(.07,1.4,.07,M.pipe); m.position.set(.82,1.38,0); g.add(m);
+    m = B(.48,.36,.36,M.dksteel); m.position.set(-.5,.38,0); g.add(m);
+    m = B(1.9,.04,.04,M.yellow); m.position.set(0,.24,.9); g.add(m);
+    return g;
+  }},
+
+  DISTILLATION: { name:'Distillation Tower', size:[2,2], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(1.8,.14,1.8,M.concrete); m.position.y=.07; g.add(m);
+    m = Cyl(.48,7.5,16,M.steel); m.position.y=3.89; g.add(m);
+    for(let i=0;i<5;i++){
+      m = Cyl(.54,.14,16,M.yellow); m.position.y=1.1+i*1.38; g.add(m);
+    }
+    m = Cone(.08,.48,.42,12,M.dksteel); m.position.y=7.42; g.add(m);
+    m = Cyl(.09,.72,8,M.pipe); m.position.y=7.72; g.add(m);
+    [2.0, 4.2].forEach(y => {
+      m = B(.75,.09,.09,M.pipe); m.position.set(.86,y,0); g.add(m);
+    });
+    m = B(.07,5.8,.04,M.dksteel); m.position.set(.58,3.1,0); g.add(m);
+    for(let i=0;i<8;i++){
+      m = B(.22,.03,.03,M.dksteel); m.position.set(.58,.48+i*.75,0); g.add(m);
+    }
+    return g;
+  }},
+
+  CRACKER: { name:'Cracker Unit', size:[3,3], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(2.8,.18,2.8,M.concrete); m.position.y=.09; g.add(m);
+    m = Cyl(.58,5.8,16,M.steel); m.position.set(-.55,3.04,0); g.add(m);
+    m = Cyl(.78,4.2,16,M.dksteel); m.position.set(.82,2.24,0); g.add(m);
+    m = Cyl(.14,1.9,8,M.pipe); m.position.set(.14,3.1,0); g.add(m);
+    m = Cyl(.34,4.2,12,M.steel); m.position.set(-.55,4.2,.95); g.add(m);
+    m = Cyl(.09,.62,8,M.pipe); m.position.set(-.55,6.6,.95); g.add(m);
+    [1.0, 3.6].forEach(y => {
+      m = Cyl(.84,.11,16,M.yellow); m.position.set(.82,y,0); g.add(m);
+    });
+    m = B(.95,.09,.09,M.pipe); m.position.set(-.55,2.5,.48); m.rotation.x=.3; g.add(m);
+    return g;
+  }},
+
+  HEAT_EX: { name:'Heat Exchanger', size:[3,1], build() {
+    const g = new THREE.Group();
+    let m;
+    [-1,.0,1].forEach(x => {
+      if(Math.abs(x)===1){
+        m = B(.22,.65,.38,M.concrete); m.position.set(x,.32,0); g.add(m);
+      }
+    });
+    m = new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,2.75,16), M.steel);
+    m.rotation.z = Math.PI/2; m.position.y=.88; g.add(m);
+    [-1.38,1.38].forEach((x,i) => {
+      m = new THREE.Mesh(new THREE.SphereGeometry(.38,14,8,0,Math.PI), M.dksteel);
+      m.rotation.z = i===0 ? Math.PI/2 : -Math.PI/2;
+      m.position.set(x,.88,0); g.add(m);
+    });
+    m = Cyl(.09,.52,8,M.pipe); m.rotation.z=Math.PI/2; m.position.set(-1.72,1.18,.2); g.add(m);
+    m = Cyl(.09,.52,8,M.orange); m.rotation.z=Math.PI/2; m.position.set(1.72,1.18,-.2); g.add(m);
+    for(let i=0;i<6;i++){
+      m = B(.02,.55,.65,M.yellow); m.position.set(-1.15+i*.44,.88,0); g.add(m);
+    }
+    return g;
+  }},
+
+  BOILER: { name:'Boiler', size:[2,2], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(1.8,.18,1.8,M.concrete); m.position.y=.09; g.add(m);
+    m = B(1.38,.88,1.38,M.dksteel); m.position.y=.58; g.add(m);
+    m = new THREE.Mesh(new THREE.CylinderGeometry(.52,.52,1.55,16), M.steel);
+    m.rotation.z=Math.PI/2; m.position.y=1.28; g.add(m);
+    m = Cyl(.19,3.1,8,M.dksteel); m.position.set(.38,2.68,-.28); g.add(m);
+    m = Cyl(.24,.1,8,M.yellow); m.position.set(.38,4.28,-.28); g.add(m);
+    m = B(.28,.28,.04,M.dksteel); m.position.set(-.5,1.1,.74); g.add(m);
+    m = new THREE.Mesh(new THREE.CircleGeometry(.1,12), M.glass); m.position.set(-.5,1.1,.77); g.add(m);
+    m = Cyl(.08,.82,8,M.pipe); m.position.set(0,1.9,.5); g.add(m);
+    return g;
+  }},
+
+  TANK_LG: { name:'Storage Tank', size:[3,3], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(2.8,.14,2.8,M.concrete); m.position.y=.07; g.add(m);
+    m = Cyl(1.18,2.65,24,M.steel); m.position.y=1.47; g.add(m);
+    m = Cyl(1.16,.07,24,M.dksteel); m.position.y=2.84; g.add(m);
+    m = Cyl(1.22,.05,24,M.yellow); m.position.y=2.92; g.add(m);
+    m = Cyl(1.20,.24,24,M.yellow); m.position.y=.42; g.add(m);
+    for(let i=0;i<6;i++){
+      const a=(i/6)*Math.PI*2;
+      m = B(.14,.04,.38,M.dksteel);
+      m.position.set(Math.cos(a)*1.28,.4+i*.34,Math.sin(a)*1.28);
+      m.rotation.y=-a; g.add(m);
+    }
+    m = Cyl(.08,.55,8,M.pipe); m.position.set(.5,2.96,.5); g.add(m);
+    m = Cyl(.11,.95,8,M.pipe); m.position.set(-.78,.58,1.1); m.rotation.x=Math.PI/4; g.add(m);
+    return g;
+  }},
+
+  TANK_SM: { name:'Buffer Tank', size:[1,1], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(.78,.09,.78,M.concrete); m.position.y=.045; g.add(m);
+    m = Cyl(.31,1.25,12,M.steel); m.position.y=.71; g.add(m);
+    m = Cyl(.32,.06,12,M.yellow); m.position.y=1.37; g.add(m);
+    m = Cyl(.05,.28,8,M.pipe); m.position.set(.1,1.52,.1); g.add(m);
+    return g;
+  }},
+
+  CTRL_ROOM: { name:'Control Room', size:[3,2], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(2.8,.18,1.8,M.concrete); m.position.y=.09; g.add(m);
+    m = B(2.6,2.2,1.6,M.concrete); m.position.y=1.28; g.add(m);
+    m = B(2.8,.14,1.8,M.dksteel); m.position.y=2.45; g.add(m);
+    for(let i=0;i<3;i++){
+      m = B(.48,.58,.04,M.glass); m.position.set(-0.84+i*.84,1.38,.81); g.add(m);
+    }
+    m = B(.38,.78,.04,M.dksteel); m.position.set(0,.58,.81); g.add(m);
+    m = B(.78,.38,.58,M.steel); m.position.set(-.68,2.68,0); g.add(m);
+    m = Cyl(.03,1.18,6,M.dksteel); m.position.set(.78,3.12,0); g.add(m);
+    m = B(2.8,.1,.04,M.yellow); m.position.set(0,2.08,.81); g.add(m);
+    return g;
+  }},
+
+  FLARE: { name:'Flare Stack', size:[1,1], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(.78,.09,.78,M.concrete); m.position.y=.045; g.add(m);
+    for(let i=0;i<3;i++){
+      const a=(i/3)*Math.PI*2;
+      m = B(.09,.14,.09,M.dksteel);
+      m.position.set(Math.cos(a)*.34,.14,Math.sin(a)*.34); g.add(m);
+    }
+    m = Cyl(.09,7.2,8,M.steel); m.position.y=3.7; g.add(m);
+    m = Cone(.04,.11,.48,8,M.red); m.position.y=7.44; g.add(m);
+    const flameMat = new THREE.MeshStandardMaterial({ color:0xff6600, emissive:0xff3300, emissiveIntensity:2.5, transparent:true, opacity:.88 });
+    m = new THREE.Mesh(new THREE.SphereGeometry(.18,8,8), flameMat);
+    m.position.y=7.82; m.name='flame'; g.add(m);
+    return g;
+  }},
+
+  COOLING: { name:'Cooling Tower', size:[2,2], build() {
+    const g = new THREE.Group();
+    let m;
+    m = B(1.8,.14,1.8,M.concrete); m.position.y=.07; g.add(m);
+    const hs=[0,.8,1.6,2.4,3.2,4.0,4.8], rs=[.82,.62,.50,.46,.48,.53,.58];
+    for(let i=0;i<hs.length-1;i++){
+      m = new THREE.Mesh(new THREE.CylinderGeometry(rs[i+1],rs[i],hs[i+1]-hs[i],16), M.concrete);
+      m.position.y=(hs[i]+hs[i+1])/2+.18; g.add(m);
+    }
+    m = Cyl(.60,.07,16,M.dksteel); m.position.y=5.04; g.add(m);
+    m = Cyl(.24,.42,8, new THREE.MeshStandardMaterial({color:0xaaddff,transparent:true,opacity:.32}));
+    m.position.y=1.95; g.add(m);
+    return g;
+  }},
+
+  PIPE_H: { name:'Pipe (H)', size:[2,1], build() {
+    const g = new THREE.Group();
+    let m;
+    m = new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,2,8), M.pipe);
+    m.rotation.z=Math.PI/2; m.position.y=.38; g.add(m);
+    [-1,1].forEach(x => {
+      m = B(.18,.28,.18,M.dksteel); m.position.set(x,.28,0); g.add(m);
+    });
+    return g;
+  }},
+
+  PIPE_CROSS: { name:'Pipe Cross', size:[1,1], build() {
+    const g = new THREE.Group();
+    let m;
+    m = new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,1,8), M.pipe);
+    m.rotation.z=Math.PI/2; m.position.y=.38; g.add(m);
+    m = new THREE.Mesh(new THREE.CylinderGeometry(.1,.1,1,8), M.pipe);
+    m.rotation.x=Math.PI/2; m.position.y=.38; g.add(m);
+    m = new THREE.Mesh(new THREE.SphereGeometry(.14,8,8), M.pipe);
+    m.position.y=.38; g.add(m);
+    return g;
+  }},
+
+  // NUOVO MODULO: Company Headquarters
+  HEADQUARTERS: { name:'Refinery HQ', size:[3,3], build() {
+    const g = new THREE.Group();
+    let m;
+
+    // Main concrete body block (3x3 footprint, Height 10u = G + 6 floors)
+    // Concrete base
+    m = B(3, 10, 3, M.concrete);
+    m.position.y = 5;
+    g.add(m);
+
+    // Dettagli architettonici incassati per simulare Facciate A e B
+
+    // FACADE B: Grande atrio centrale incassato (vuoto architettonico, rif. image_3.png, image_6.png)
+    // Deep central void (recessed dark glass) spanning floors 1-5
+    // Inset (dark void box)
+    m = B(2.0, 8.0, 0.5, M.dksteel); // Deep recess void
+    m.position.set(0, 5.5, -1.5 - 0.25);
+    g.add(m);
+    // Reflective glass panel on face -z within the void
+    m = B(1.8, 7.8, 0.1, M.glass); // Glass face backed
+    m.position.set(0, 5.5, -1.5 - 0.3);
+    g.add(m);
+    // Flanking stone columns (slightly different shade)
+    m = B(0.5, 10, 0.2, new THREE.MeshStandardMaterial({ color:0xe8e0d0, roughness:0.8 })); // Beige column
+    m.position.set(1.25, 5, -1.5 - 0.1); g.add(m);
+    m = B(0.5, 10, 0.2, new THREE.MeshStandardMaterial({ color:0xe8e0d0, roughness:0.8 })); // Beige column
+    m.position.set(-1.25, 5, -1.5 - 0.1); g.add(m);
+
+    // FACADE A: Repetitive Window Grid (griglia di finestre quadrate, rif. image_4.png, image_5.png)
+    // Grid of windows on face +z
+    // 3 columns, 6 floors
+    for (let floor = 0; floor < 6; floor++) {
+      for (let col = 0; col < 3; col++) {
+        // Window frame/void
+        m = B(0.4, 0.4, 0.05, M.dksteel);
+        m.position.set(-0.8 + col * 0.8, 1.0 + floor * 1.5, 1.51); // z pos on front face
+        g.add(m);
+        // Back with glass
+        m = B(0.35, 0.35, 0.02, M.glass);
+        m.position.set(-0.8 + col * 0.8, 1.0 + floor * 1.5, 1.52);
+        g.add(m);
+      }
+    }
+
+    // Roof details (mechanical penthouse, ref. image_1.png, image_2.png)
+    // Central raised section
+    m = B(1.5, 1.0, 1.5, M.concrete);
+    m.position.set(0, 10.5, 0);
+    g.add(m);
+    // Skylights around central penthouse
+    for (let i = 0; i < 2; i++) {
+        for (let j = 0; j < 2; j++) {
+            m = B(0.3, 0.05, 0.3, M.glass);
+            m.position.set(-0.5 + i * 1, 10.05, -0.5 + j * 1);
+            g.add(m);
+        }
+    }
+
+    return g;
+  }},
+};
+
+// ══════════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════════
+const placed = [];
+let selected = null;
+let ghost = null, ghostType = null;
+let draggingFromPanel = false; // overCanvas rimosso per logica più solida
+
+// ══════════════════════════════════════════════════
+//  SELECTION RING
+// ══════════════════════════════════════════════════
+const ringMesh = new THREE.Mesh(
+  new THREE.RingGeometry(.7,.85,32),
+  new THREE.MeshBasicMaterial({ color:0xe8a020, side:THREE.DoubleSide, transparent:true, opacity:.9 })
+);
+ringMesh.rotation.x=-Math.PI/2; ringMesh.position.y=.025; ringMesh.visible=false;
+scene.add(ringMesh);
+
+// ══════════════════════════════════════════════════
+//  GHOST HELPERS
+// ══════════════════════════════════════════════════
+function spawnGhost(type) {
+  killGhost();
+  // BUG FIX: killGhost azzera ghostType, dobbiamo rimemorizzarlo subito dopo
+  ghostType = type;
+  const def = DEFS[type]; if(!def) return;
+  ghost = def.build();
+  ghost.traverse(c => { if(c.isMesh) c.material = ghostOk.clone(); });
+  ghost.visible = false;
+  scene.add(ghost);
+}
+function killGhost() {
+  if(ghost){ scene.remove(ghost); ghost=null; }
+  ghostType = null;
+}
+
+// ══════════════════════════════════════════════════
+//  RAYCASTER E POSIZIONAMENTO
+// ══════════════════════════════════════════════════
+const rc = new THREE.Raycaster();
+const groundPlane = new THREE.Plane(new THREE.Vector3(0,1,0), 0);
+const tmpMouse = new THREE.Vector2();
+
+function worldPos(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  // Pointer Events: coordinate clientX/Y sono globali, vanno adattate al canvas
+  tmpMouse.set(
+    ((e.clientX - r.left) / r.width)  * 2 - 1,
+   -((e.clientY - r.top)  / r.height) * 2 + 1
+  );
+  rc.setFromCamera(tmpMouse, camera);
+  const hit = new THREE.Vector3();
+  return rc.ray.intersectPlane(groundPlane, hit) ? hit : null;
+}
+
+function snap(v) {
+  return { x: Math.round(v.x), z: Math.round(v.z) };
+}
+
+function placeModule(type, gx, gz, rot=0) {
+  const def = DEFS[type]; if(!def) return null;
+  const grp = def.build();
+  grp.traverse(c => { if(c.isMesh){ c.castShadow=true; c.receiveShadow=true; } });
+  grp.position.set(gx, 0, gz);
+  grp.rotation.y = rot;
+  grp.userData = { type, gx, gz, rot, def };
+  scene.add(grp);
+  placed.push(grp);
+  document.getElementById('mod-count').textContent = placed.length;
+  return grp;
+}
+
+// ══════════════════════════════════════════════════
+//  SELECTION UI
+// ══════════════════════════════════════════════════
+function selectMod(mod) {
+  selected = mod;
+  const sp = document.getElementById('sel-panel');
+  if(!mod){ sp.style.display='none'; ringMesh.visible=false; return; }
+  sp.style.display='block';
+  document.getElementById('sel-name').textContent = mod.userData.def.name.toUpperCase();
+  document.getElementById('sel-x').textContent = mod.userData.gx;
+  document.getElementById('sel-z').textContent = mod.userData.gz;
+  const deg = ((mod.userData.rot * 180 / Math.PI) % 360 + 360) % 360;
+  document.getElementById('sel-r').textContent = deg.toFixed(0) + '°';
+  document.getElementById('sel-s').textContent = mod.userData.def.size.join('×');
+  ringMesh.visible = true;
+  const s = Math.max(...mod.userData.def.size) * 0.82;
+  ringMesh.scale.setScalar(s);
+  ringMesh.position.set(mod.position.x, .025, mod.position.z);
+}
+
+function deleteSel() {
+  if(!selected) return;
+  const i = placed.indexOf(selected);
+  if(i>-1) placed.splice(i,1);
+  scene.remove(selected);
+  selectMod(null);
+  document.getElementById('mod-count').textContent = placed.length;
+}
+
+function rotateSel() {
+  if(!selected) return;
+  selected.userData.rot += Math.PI/2;
+  selected.rotation.y = selected.userData.rot;
+  const deg = ((selected.userData.rot * 180/Math.PI)%360+360)%360;
+  document.getElementById('sel-r').textContent = deg.toFixed(0)+'°';
+}
+
+// ══════════════════════════════════════════════════
+//  DRAG & DROP SYSTEM BLINDATO (Pointer Events)
+// ══════════════════════════════════════════════════
+const dragGhostEl = document.getElementById('drag-ghost');
+const coordTip = document.getElementById('coord-tip');
+const modePill = document.getElementById('mode-pill');
+const posDisp = document.getElementById('pos-disp');
+let lastValidSnap = null; // Memorizza ultima posizione buona sulla griglia
+
+// Spegniamo totalmente i drag events nativi del browser per sicurezza
+window.addEventListener('dragstart', e => e.preventDefault());
+
+document.querySelectorAll('.mcard').forEach(card => {
+  // Passiamo a pointerdown per compatibilità solida
+  card.addEventListener('pointerdown', e => {
+    // BUG FIX: Blocca drag nativo del browser che interferiva con mouseup
+    if(e.button !== 0) return; // ignora clic destro
+    e.preventDefault();
+    
+    const type = card.dataset.type;
+    draggingFromPanel = true;
+    ghostType = type;
+    lastValidSnap = null;
+    
+    dragGhostEl.textContent = '⊕ ' + DEFS[type].name;
+    dragGhostEl.style.display = 'block';
+    dragGhostEl.style.left = e.clientX+'px';
+    dragGhostEl.style.top  = e.clientY+'px';
+    modePill.style.display = 'block';
+    
+    // Disabilita orbit mentre trasciniamo
+    orb.enabled = false;
+    spawnGhost(type);
+  });
+});
+
+window.addEventListener('pointermove', e => {
+  const r = cv.getBoundingClientRect();
+  const isOverCanvas = (e.clientX >= r.left && e.clientX <= r.right && 
+                        e.clientY >= r.top && e.clientY <= r.bottom);
+
+  if(draggingFromPanel) {
+    dragGhostEl.style.left = e.clientX+'px';
+    dragGhostEl.style.top  = e.clientY+'px';
+    
+    // Sostituito overCanvas con calcolo diretto e memorizzazione
+    if(isOverCanvas && ghost) {
+      const wp = worldPos(e);
+      if(wp) {
+        lastValidSnap = snap(wp); // Memorizziamo le coordinate sicure
+        ghost.position.set(lastValidSnap.x, 0, lastValidSnap.z);
+        ghost.visible = true;
+        posDisp.textContent = lastValidSnap.x+', '+lastValidSnap.z;
+        coordTip.style.display='block';
+        coordTip.style.left = (e.clientX+16)+'px';
+        coordTip.style.top  = (e.clientY-26)+'px';
+        coordTip.textContent = '['+lastValidSnap.x+', '+lastValidSnap.z+']';
+      }
+    } else {
+      if(ghost) ghost.visible=false;
+      coordTip.style.display='none';
+    }
+  } else if(isOverCanvas) {
+    const wp = worldPos(e);
+    if(wp){ const s=snap(wp); posDisp.textContent=s.x+', '+s.z; }
+  } else {
+    posDisp.textContent='—';
+  }
+});
+
+window.addEventListener('pointerup', e => {
+  if(draggingFromPanel) {
+    dragGhostEl.style.display='none';
+    modePill.style.display='none';
+    coordTip.style.display='none';
+    
+    // BUG FIX: Ancoraggio certo, usiamo l'ultima posizione valida memorizzata durante il move
+    if(lastValidSnap && ghostType) {
+      placeModule(ghostType, lastValidSnap.x, lastValidSnap.z, 0);
+    }
+    
+    killGhost();
+    draggingFromPanel = false;
+    lastValidSnap = null;
+    orb.enabled = true;
+  }
+});
+
+// ══════════════════════════════════════════════════
+//  CANVAS CLICK (select)
+// ══════════════════════════════════════════════════
+let mouseDownTime = 0, mouseDownPos = { x:0, y:0 };
+
+renderer.domElement.addEventListener('pointerdown', e => {
+  // Solo tasto sinistro per selezionare, se non stiamo trascinando
+  if (e.button === 0 && !draggingFromPanel) { 
+    mouseDownTime = Date.now();
+    mouseDownPos = { x:e.clientX, y:e.clientY };
+  }
+});
+
+renderer.domElement.addEventListener('pointerup', e => {
+  if(draggingFromPanel || e.button !== 0) return;
+  const dt = Date.now()-mouseDownTime;
+  const dx = e.clientX-mouseDownPos.x, dz = e.clientY-mouseDownPos.y;
+  // ignora se stavi orbitando/panando
+  if(dt>250 || Math.sqrt(dx*dx+dz*dz)>6) return; 
+
+  const r = renderer.domElement.getBoundingClientRect();
+  tmpMouse.set(
+    ((e.clientX-r.left)/r.width)*2-1,
+   -((e.clientY-r.top)/r.height)*2+1
+  );
+  rc.setFromCamera(tmpMouse, camera);
+  const meshes=[];
+  placed.forEach(g => g.traverse(c => { if(c.isMesh) meshes.push(c); }));
+  
+  const hits = rc.intersectObjects(meshes);
+  if(hits.length) {
+    let obj = hits[0].object;
+    while(obj && !obj.userData.def) obj=obj.parent;
+    if(obj && obj.userData.def) { selectMod(obj); return; }
+  }
+  selectMod(null);
+});
+
+// ══════════════════════════════════════════════════
+//  KEYBOARD
+// ══════════════════════════════════════════════════
+window.addEventListener('keydown', e => {
+  switch(e.key) {
+    case 'Delete': case 'Backspace': deleteSel(); break;
+    case 'Escape':
+      if(draggingFromPanel){
+        dragGhostEl.style.display='none'; modePill.style.display='none';
+        killGhost(); draggingFromPanel=false; orb.enabled=true;
+      }
+      selectMod(null); break;
+    case 'r': case 'R': rotateSel(); break;
+    case 'f': case 'F':
+      if(selected){ orb.target.copy(selected.position); orb.update(); }
+      break;
+  }
+});
+
+// ══════════════════════════════════════════════════
+//  UI BUTTONS
+// ══════════════════════════════════════════════════
+document.getElementById('btn-del').addEventListener('click', deleteSel);
+document.getElementById('btn-rot').addEventListener('click', rotateSel);
+
+// ══════════════════════════════════════════════════
+//  RESIZE
+// ══════════════════════════════════════════════════
+window.addEventListener('resize', () => {
+  camera.aspect = W()/H();
+  camera.updateProjectionMatrix();
+  renderer.setSize(W(), H());
+});
+
+// ══════════════════════════════════════════════════
+//  ANIMATE
+// ══════════════════════════════════════════════════
+const clock = new THREE.Clock();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const t = clock.getElapsedTime();
+
+  // Selection ring pulse
+  if(selected && ringMesh.visible)
+    ringMesh.material.opacity = .55 + Math.sin(t*3)*.3;
+
+  // Flare flame animation
+  placed.forEach(mod => {
+    if(mod.userData.type==='FLARE') {
+      const fl = mod.getObjectByName('flame');
+      if(fl) {
+        fl.scale.setScalar(.75 + Math.sin(t*9+mod.position.x)*.3);
+        fl.material.emissiveIntensity = 2.0 + Math.sin(t*14)*.8;
+        fl.material.opacity = .78 + Math.sin(t*11)*.18;
+      }
+    }
+  });
+
+  orb.update();
+  renderer.render(scene, camera);
+}
+animate();
+
+console.log('%c🏭 Oil Refinery Planner 3D','color:#e8a020;font-size:14px;font-weight:bold');
+console.log('%c Pointer Events blindati. Drag and drop solidi. controlli: LMB orbit, RMB pan.','color:#607080');
+</script>
+</body>
+</html>

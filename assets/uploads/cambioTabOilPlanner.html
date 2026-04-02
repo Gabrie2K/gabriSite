@@ -1,0 +1,38 @@
+<div id="building-panel" class="panel-container">
+  
+  <div class="panel-header">
+    <span class="panel-title">REFINERY HQ</span>
+  </div>
+
+  <div class="panel-tabs">
+    <button id="btn-info" class="tab-btn active" onclick="switchTab('info')">[ INFO ]</button>
+    <button id="btn-plans" class="tab-btn" onclick="switchTab('plans')">[ PLANIMETRIE ]</button>
+  </div>
+
+  <div id="tab-info" class="tab-content active">
+    <div class="data-row"><span>grid X</span> <span>8</span></div>
+    <div class="data-row"><span>grid Z</span> <span>10</span></div>
+    <div class="data-row"><span>rotation</span> <span>0°</span></div>
+    <div class="data-row"><span>footprint</span> <span>3x3</span></div>
+    
+    <div class="action-buttons">
+      <button class="action-btn btn-rotate">[ ROTATE 90° ]</button>
+      <button class="action-btn btn-delete">[ DELETE ]</button>
+    </div>
+  </div>
+
+  <div id="tab-plans" class="tab-content">
+    <ul class="floor-list">
+      <li class="floor-item" onclick="openPlan(1)">
+        Piano 1 <span class="floor-link">Planimetria ⮞</span>
+      </li>
+      <li class="floor-item" onclick="openPlan(2)">
+        Piano 2 <span class="floor-link">Planimetria ⮞</span>
+      </li>
+      <li class="floor-item" onclick="openPlan(3)">
+        Piano 3 <span class="floor-link">Planimetria ⮞</span>
+      </li>
+    </ul>
+  </div>
+
+</div>
